@@ -4,7 +4,11 @@ import math
 PI = math.pi
 
 def convert_obs_to_coords(x_k, z_k, Z):
-    pass
+    r, theta  = z_k 
+    x, y, _ = x_k
+    obs_x = x + r*math.cos(theta)
+    obs_y = y + r*math.sin(theta)
+    return np.array([obs_x, obs_y]) 
 
 def observation_model(x_k, m):
     pass
@@ -21,7 +25,8 @@ def measurement_update(X, m, Z, x0):
 def observation_update(X, m, feature, matched):
     ## additive, zero mean, uncorrelated gaussian
     ## motion disturbance
-    x_hat = 1/np.linalg.norm(X[-1])*X[-1]
+    norm = np.linalg.norm(X[-1])
+    x_hat = 1/norm*X[-1] if norm != 0 else 0
     v_k   = np.random.normal(loc=0.0, scale=0.01, size=3)
     
  
@@ -31,13 +36,15 @@ def main():
     ## Landmark locations
     m = np.array([])
     ## Camera locations: x, y, z, htheta, vtheta, rtheta
-    X = np.array(np.array([[0.0,0.0,0.0,0.0,0.0,0.0]]))
+    X = np.array([[0.0,0.0,0.0]])
     ## Observation dimensions: r, theta
     ## Test observations at (1,1) and (1,-1)
-    observations = np.array([[math.sqrt(2), -pi/8], [math.sqrt(2),pi/8]])
+    observations = np.array([[math.sqrt(2), -PI/4], [math.sqrt(2),PI/4]])
     ## Current timestep
     timestep = 0
     ## Update observation model
     observation_update(X, observations, m, [])
-    
+    for o in observations:
+        print convert_obs_to_coords(X[-1], o, observations)
+ 
 main()
