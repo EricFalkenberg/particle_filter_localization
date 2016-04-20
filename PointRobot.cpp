@@ -178,7 +178,7 @@ double PointRobot::getForwardVelocity() {
     @param argc The program argc input
     @param argv The program argv input
 */
-void PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
+int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
     // Initialization
     ros::init(argc, argv, "motion");
     ros::NodeHandle n;
@@ -289,5 +289,4 @@ int main(int argc, char **argv) {
     PointRobot robot (argv[1], 0.3, 0.1);
     robot.run(argc, argv, run_kinect, run_sonar);
     ros::shutdown();
-    spin_thread.join();
 }

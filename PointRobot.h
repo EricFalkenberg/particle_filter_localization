@@ -17,6 +17,18 @@
 #include "p2os_msgs/SonarArray.h"
 #define PI 3.14159265
 
+/**
+    Represents a destination point on the (x,y) plane.
+*/
+struct dest {
+    double x;
+    double y;
+    bool operator<( const dest &n) const {
+        return this->x < n.x;
+    }
+};
+
+
 class PointRobot {
 private:
     // The amout of error we will allow.
@@ -33,7 +45,7 @@ private:
     geometry_msgs::Twist twist;
 public:
     PointRobot(char* fname, double SPEED, double VARIANCE);
-    void hereAmI();
+    void whereAmI();
     void updateMap();
     void sonarCallback(const p2os_msgs::SonarArray msgs);
     void kinectCallback(const sensor_msgs::LaserScan msgs);
@@ -44,13 +56,4 @@ public:
     std::queue<dest> read_file(char *file);
 };
 
-/**
-    Represents a destination point on the (x,y) plane.
-*/
-struct dest {
-    double x;
-    double y;
-    bool operator<( const dest &n) const {
-        return this->x < n.x;
-    }
-};
+
