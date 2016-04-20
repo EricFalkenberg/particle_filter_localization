@@ -11,6 +11,10 @@ PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
     this->DEFAULT_SPEED = SPEED;
 }
 
+PointRobot::whereAmI() {
+    // DO NOTHING FOR NOW
+}
+
 PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
     boost::timer t = boost::timer();
     double x_pos = pose.position.x;

@@ -34,6 +34,7 @@ private:
     geometry_msgs::Twist twist;
 public:
     PointRobot(char* fname, double SPEED, double VARIANCE);
+    void whereAmI();
     void sonarCallback(const p2os_msgs::SonarArray msgs);
     void kinectCallback(const sensor_msgs::LaserScan msgs);
     void odomCallback(const nav_msgs::Odometry msgs);

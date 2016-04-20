@@ -1,0 +1,4 @@
+
+Localizer::Localizer() {
+    // Pass
+}
