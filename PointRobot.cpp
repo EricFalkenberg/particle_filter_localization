@@ -1,3 +1,4 @@
+#include "PointRobot.h"
 
 /**
     Constructor
@@ -12,6 +13,10 @@ PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
 }
 
 PointRobot::whereAmI() {
+    // DO NOTHING FOR NOW
+}
+
+PointRobot::updateMap() {
     // DO NOTHING FOR NOW
 }
 
