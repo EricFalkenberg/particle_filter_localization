@@ -12,15 +12,15 @@ PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
     this->DEFAULT_SPEED = SPEED;
 }
 
-PointRobot::whereAmI() {
+void PointRobot::whereAmI() {
     // DO NOTHING FOR NOW
 }
 
-PointRobot::updateMap() {
+void PointRobot::updateMap() {
     // DO NOTHING FOR NOW
 }
 
-PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
+void PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
     boost::timer t = boost::timer();
     double x_pos = pose.position.x;
     double y_pos = pose.position.y;
@@ -35,7 +35,7 @@ PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
     }
 }   
 
-PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
+void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
     boost::timer t = boost::timer();
     double x_pos = pose.position.x;
     double y_pos = pose.position.y;
@@ -57,12 +57,12 @@ PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
     }
 }
 
-    /**
-        The callback function responsible for handling any information
-        retrieved from /r1/odom
-        @param msgs The message received from /r1/odom
-    */
-PointRobot::odomCallback(const nav_msgs::Odometry msgs) {
+/**
+    The callback function responsible for handling any information
+    retrieved from /r1/odom
+    @param msgs The message received from /r1/odom
+*/
+void PointRobot::odomCallback(const nav_msgs::Odometry msgs) {
     this->pose  = msgs.pose.pose;
     this->twist = msgs.twist.twist;
     float position_theta = 2*atan2(pose.orientation.z, pose.orientation.w);
@@ -70,13 +70,13 @@ PointRobot::odomCallback(const nav_msgs::Odometry msgs) {
     float y_pos = pose.position.y;
 }
     
-    /**
-        When called, this function will determine the angular velocity that
-        the PointRobot instance should take on considering the destination location
-        as well as the current position and heading of the instance itself.
-        @return The new angular velocity value
-    */
-PointRobot::getAngularVelocity() {
+/**
+    When called, this function will determine the angular velocity that
+    the PointRobot instance should take on considering the destination location
+    as well as the current position and heading of the instance itself.
+    @return The new angular velocity value
+*/
+double PointRobot::getAngularVelocity() {
     double destination_theta;
     double delta_theta;
     double x_pos            = this->pose.position.x;
@@ -136,12 +136,12 @@ PointRobot::getAngularVelocity() {
     return ANGULAR_VELOCITY;
 }
 
-    /**
-        When called, this function is responsible for computing the forward velocity
-        of the PointRobot based on its proximity to the active destination point.
-        @return The forward velocity of the PointRobot
-    */
-PointRobot::getForwardVelocity() {
+/**
+    When called, this function is responsible for computing the forward velocity
+    of the PointRobot based on its proximity to the active destination point.
+    @return The forward velocity of the PointRobot
+*/
+double PointRobot::getForwardVelocity() {
     double x_pos        = pose.position.x;
     double y_pos        = pose.position.y;
     double dest_x       = this->destinations.front().x;
@@ -178,7 +178,7 @@ PointRobot::getForwardVelocity() {
     @param argc The program argc input
     @param argv The program argv input
 */
-PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
+void PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
     // Initialization
     ros::init(argc, argv, "motion");
     ros::NodeHandle n;
@@ -240,7 +240,7 @@ PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
     and translating it into a queue of destination points.
     @param file The name of the file to be read
 */
-PointRobot::read_file(char *file) {
+std::queue<dest> PointRobot::read_file(char *file) {
     std::queue<dest> destinations; 
     std::ifstream read(file);
     std::string s;
