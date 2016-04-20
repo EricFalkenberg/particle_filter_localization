@@ -27,7 +27,9 @@ void PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
     double position_theta = 2*atan2(pose.orientation.z, pose.orientation.w);
     double angles[] = {-PI/4, -PI/7.2, -PI/12, -PI/36, PI/36, PI/12, PI/7.2, PI/4};
     for (int i = 0; i < 9; i++) {
-        if (msgs.ranges[i] > 0.0) {
+        if (
+            msgs.ranges[i] > 0.0
+        ) {
             double x = x_pos + (msgs.ranges[i])*cos(position_theta+angles[i]);
             double y = y_pos + (msgs.ranges[i])*sin(position_theta+angles[i]);
             //this->plotSonar(x_pos, y_pos, x, y);
@@ -47,7 +49,9 @@ void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
     int i = 45;
     angle = angle + angle_increment*45;
     while (angle < max_angle && i < 638-45) {
-        if (!isnan(msgs.ranges[i])) {
+        if (
+            ! isnan(msgs.ranges[i])
+        ) {
             double x = x_pos + (msgs.ranges[i])*cos(angle);
             double y = y_pos + (msgs.ranges[i])*sin(angle);
             //this->plotKinect(x_pos, y_pos, x, y);
@@ -87,20 +91,32 @@ double PointRobot::getAngularVelocity() {
     double delta_x          = dest_x-x_pos;
     double delta_y          = dest_y-y_pos;
 
-    if (delta_x == 0.0 || delta_y == 0.0) {
+    if (
+        delta_x == 0.0 
+        || delta_y == 0.0
+    ) {
         // If the robot is inline with the destination,
         // the destination theta is 0.
         destination_theta = 0.0;
     }
-    else if (delta_x > 0.0 && delta_y > 0.0) {
+    else if (
+        delta_x > 0.0 
+        && delta_y > 0.0
+    ) {
         // First Quadrant.
         destination_theta = atan(delta_y/delta_x);
     }
-    else if (delta_x < 0.0 && delta_y > 0.0) {
+    else if (
+        delta_x < 0.0
+        && delta_y > 0.0
+    ) {
         // Second Quadrant.
         destination_theta = PI + atan(delta_y/delta_x);
     }
-    else if (delta_x < 0.0 && delta_y < 0.0) {
+    else if (
+        delta_x < 0.0
+        && delta_y < 0.0
+    ) {
         // Third Quadrant.
         destination_theta = PI + atan(delta_y/delta_x);
     }
@@ -110,24 +126,37 @@ double PointRobot::getAngularVelocity() {
     }
 
     // Detect whether or not position_theta is negative and correct it.
-    if (position_theta < 0.0) { 
+    if (
+        position_theta < 0.0
+    ) { 
         position_theta  = 2*PI + position_theta; 
     }
 
     // Calculate the angle we still need to turn.
     delta_theta = destination_theta - position_theta;
-    if (fabs(delta_theta) > PI) {
+    if (
+        fabs(delta_theta) > PI
+    ) {
         delta_theta *= -1;
     }
     // Alter the robots angular velocity based on the above calculated info.
-    if (delta_theta >= -2*VARIANCE && delta_theta <= 2*VARIANCE) {
+    if (
+        delta_theta >= -2*VARIANCE
+        && delta_theta <= 2*VARIANCE
+    ) {
         ANGULAR_VELOCITY = 0.0;
     }
-    else if (ANGULAR_VELOCITY == 0.0) {
-        if (delta_theta <= 0) {
+    else if (
+        ANGULAR_VELOCITY == 0.0
+    ) {
+        if (
+            delta_theta <= 0
+        ) {
             ANGULAR_VELOCITY = -1*DEFAULT_SPEED;
         }
-        else if (delta_theta > 0) {
+        else if (
+            delta_theta > 0
+        ) {
             ANGULAR_VELOCITY = 1*DEFAULT_SPEED;
         }
     }
@@ -148,9 +177,16 @@ double PointRobot::getForwardVelocity() {
     double dest_y       = this->destinations.front().y;
     double EXT_VARIANCE = VARIANCE*5;    
 
-    if ((x_pos >= dest_x-VARIANCE && x_pos <= dest_x+VARIANCE)
-        &&
-        (y_pos >= dest_y-VARIANCE && y_pos <= dest_y+VARIANCE)) {
+    if (
+        (
+            x_pos >= dest_x-VARIANCE
+            && x_pos <= dest_x+VARIANCE
+        )
+        && (
+            y_pos >= dest_y-VARIANCE 
+            && y_pos <= dest_y+VARIANCE
+        )
+    ) {
         // If the x_pos and y_pos values are in range of the destination point
         // allowing for the specified error, we can stop the PointRobot and pop
         // the active destination off of the destinations queue.           
@@ -158,9 +194,16 @@ double PointRobot::getForwardVelocity() {
         destinations.pop();
         return 0.0;
     }
-    else if ((x_pos >= dest_x-EXT_VARIANCE && x_pos <= dest_x+EXT_VARIANCE)
-             &&
-             (y_pos >= dest_y-EXT_VARIANCE && y_pos <= dest_y+EXT_VARIANCE)) {
+    else if (
+        (
+            x_pos >= dest_x-EXT_VARIANCE
+            && x_pos <= dest_x+EXT_VARIANCE
+        )
+        && (
+            y_pos >= dest_y-EXT_VARIANCE
+            && y_pos <= dest_y+EXT_VARIANCE
+        )
+    ) {
         // If the x_pos and y_pos values are not in range of the destination point
         // allowing for specified error, but are at close proximity to that location,
         // slow the speed of the PointRobot in order to prepare to stop.
@@ -194,10 +237,14 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
     ros::Subscriber vel = n.subscribe<nav_msgs::Odometry>("pose", 1000, &PointRobot::odomCallback, this);
     ros::Subscriber kinect;
     ros::Subscriber sonar;
-    if (run_kinect) {
+    if (
+        run_kinect
+    ) {
         kinect = n.subscribe<sensor_msgs::LaserScan>("scan", 50, &PointRobot::kinectCallback, this);
     }
-    if (run_sonar) {
+    if (
+        run_sonar
+    ) {
         sonar  = n.subscribe<p2os_msgs::SonarArray>("sonar", 50, &PointRobot::sonarCallback, this);        
     }
     // Create the motion publisher and set the loop rate
@@ -214,7 +261,9 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
 
         // If our destiinations queue is empty, try to find another location to visit
         // If we have visited all destinations, we can exit
-        if (destinations.empty()) {
+        if (
+            destinations.empty()
+        ) {
             motion.publish(msg);
             break;
         }
@@ -223,7 +272,9 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
         msg.angular.z = this->getAngularVelocity();        
         // If we are not currently turning, calculate the forward velocity
         // of the PointRobot
-        if (msg.angular.z == 0.0) {
+        if (
+            msg.angular.z == 0.0
+        ) {
             msg.linear.x = this->getForwardVelocity();
         }
         // Publish our velocities to /r1/cmd_vel
@@ -246,7 +297,10 @@ std::queue<dest> PointRobot::read_file(char *file) {
     std::string s;
     do {
         getline(read, s);
-        if (read.eof()) {
+        if (
+            read.eof()
+        ) {
+
             break;
         }
         dest d;
@@ -269,16 +323,22 @@ void usage() {
 int main(int argc, char **argv) {
     bool run_kinect = false;
     bool run_sonar = false;
-    if (argc < 3) {
+    if (
+        argc < 3
+    ) {
         usage();
         return 0;
     }
     for (int i = 2; i < argc; i++) {
         std::string arg(argv[i]);
-        if (arg.compare("sonar") == 0) {
+        if (
+            arg.compare("sonar") == 0
+        ) {
             run_sonar = true;
         }
-        else if (arg.compare("kinect") == 0) {
+        else if (
+            arg.compare("kinect") == 0
+        ) {
             run_kinect = true;
         }
         else {
