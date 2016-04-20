@@ -15,6 +15,7 @@
 #include "sensor_msgs/LaserScan.h"
 #include "p2os_msgs/MotorState.h"
 #include "p2os_msgs/SonarArray.h"
+#include "Localizer.h"
 #define PI 3.14159265
 
 /**
@@ -31,6 +32,7 @@ struct dest {
 
 class PointRobot {
 private:
+    Localizer *localizer;
     // The amout of error we will allow.
     double VARIANCE;
     // The angular velocity of the robot.

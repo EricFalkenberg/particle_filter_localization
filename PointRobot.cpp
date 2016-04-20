@@ -10,6 +10,7 @@ PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
     this->VARIANCE = VARIANCE;
     this->ANGULAR_VELOCITY = 0.0;
     this->DEFAULT_SPEED = SPEED;
+    *(this->localizer) = new Localizer();
 }
 
 void PointRobot::whereAmI() {
@@ -32,7 +33,6 @@ void PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
         ) {
             double x = x_pos + (msgs.ranges[i])*cos(position_theta+angles[i]);
             double y = y_pos + (msgs.ranges[i])*sin(position_theta+angles[i]);
-            //this->plotSonar(x_pos, y_pos, x, y);
         }
     }
 }   
@@ -54,7 +54,6 @@ void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
         ) {
             double x = x_pos + (msgs.ranges[i])*cos(angle);
             double y = y_pos + (msgs.ranges[i])*sin(angle);
-            //this->plotKinect(x_pos, y_pos, x, y);
         }
         angle = angle + 1*angle_increment;
         i += 1;
