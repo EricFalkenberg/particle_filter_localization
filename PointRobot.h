@@ -1,5 +1,6 @@
 #include <string>
 #include <iostream>
+#include <vector>
 #include <queue>
 #include <map>
 #include <math.h>
@@ -31,6 +32,7 @@ struct dest {
 
 class PointRobot {
 private:
+    std::vector< std::vector<double> > vec;
     // The amout of error we will allow.
     double VARIANCE;
     // The angular velocity of the robot.
@@ -47,6 +49,8 @@ public:
     PointRobot(char* fname, double SPEED, double VARIANCE);
     void whereAmI();
     void updateMap();
+    void plotSonar(double x0, double y0, double x1, double y1);
+    void plotKinect(double x0, double y0, double x1, double y1);
     void sonarCallback(const p2os_msgs::SonarArray msgs);
     void kinectCallback(const sensor_msgs::LaserScan msgs);
     void odomCallback(const nav_msgs::Odometry msgs);

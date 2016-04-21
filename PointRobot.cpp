@@ -5,11 +5,13 @@
     @param fname The filename containing all destination points
     @param VARIANCE The amount of error we are willing to allow
 */
-PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
+PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE, 
+                       std::vector< std::vector<double> > evidence_grid) {
     this->destinations = this->read_file(fname);
     this->VARIANCE = VARIANCE;
     this->ANGULAR_VELOCITY = 0.0;
     this->DEFAULT_SPEED = SPEED;
+    this->vec = evidence_grid;
 }
 
 void PointRobot::whereAmI() {
@@ -18,6 +20,110 @@ void PointRobot::whereAmI() {
 
 void PointRobot::updateMap() {
     // DO NOTHING FOR NOW
+}
+
+void PointRobot::plotSonar(double x0, double y0, double x1, double y1) {
+    //x0 = floor(x0*1.4);
+    //y0 = floor(y0*1.4);
+    //x1 = floor(x1*1.4);
+    //y1 = floor(y1*1.4);
+    double distance = sqrt((x1-x0)*(x1-x0) + (y1-y0)*(y1-y0));
+    double p;
+    double center = this->vec.size() / 2.0;
+    double dx = abs(x1-x0);
+    double dy = abs(y1-y0);
+    double x  = x0;
+    double y  = y0;
+    double sx = (x0 > x1) ? -1 : 1;
+    double sy = (y0 > y1) ? -1 : 1;
+    if (dx > dy) {
+        double err = dx / 2.0;
+        while (x != x1) {
+            p = this->vec[center-y][center+x];
+            if (p == 1) { p = 0.99; }
+            if (p > 0.01) {
+                p = p/(1-p) * 0.45/0.55;
+                p = p/(1 + p);
+            }
+            this->vec[center-y][center+x] = p;
+            err -= dy;
+            if (err < 0) {
+                y += sy;
+                err += dx;
+            }
+            x += sx;
+        }
+    }
+    else {
+        double err = dy / 2.0;
+        while (y != y1) {
+            p = this->vec[center-y][center+x];
+            if (p == 1) { p = 0.99; }
+            if (p > 0.01) {
+                p = p/(1-p) * 0.45/0.55;
+                p = p/(1 + p);
+            }
+            this->vec[center-y][center+x] = p;
+            err -= dx;
+            if (err < 0) {
+                x += sx;
+                err += dy;
+            }
+            y += sy;
+        }
+    }
+}
+
+void PointRobot::plotKinect(double x0, double y0, double x1, double y1) {
+    //x0 = floor(x0*1.4);
+    //y0 = floor(y0*1.4);
+    //x1 = floor(x1*1.4);
+    //y1 = floor(y1*1.4);
+    double distance = sqrt((x1-x0)*(x1-x0) + (y1-y0)*(y1-y0));
+    double p;
+    double center = this->vec.size() / 2.0;
+    double dx = abs(x1-x0);
+    double dy = abs(y1-y0);
+    double x  = x0;
+    double y  = y0;
+    double sx = (x0 > x1) ? -1 : 1;
+    double sy = (y0 > y1) ? -1 : 1;
+    if (dx > dy) {
+        double err = dx / 2.0;
+        while (x != x1) {
+            p = this->vec[center-y][center+x];
+            if (p == 1) { p = 0.99; }
+            if (p > 0.01) {
+                p = p/(1-p) * 0.45/0.55;
+                p = p/(1 + p);
+            }
+            this->vec[center-y][center+x] = p;
+            err -= dy;
+            if (err < 0) {
+                y += sy;
+                err += dx;
+            }
+            x += sx;
+        }
+    }
+    else {
+        double err = dy / 2.0;
+        while (y != y1) {
+            p = this->vec[center-y][center+x];
+            if (p == 1) { p = 0.99; }
+            if (p > 0.01) {
+                p = p/(1-p) * 0.45/0.55;
+                p = p/(1 + p);
+            }
+            this->vec[center-y][center+x] = p;
+            err -= dx;
+            if (err < 0) {
+                x += sx;
+                err += dy;
+            }
+            y += sy;
+        }
+    }
 }
 
 void PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
@@ -32,7 +138,7 @@ void PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
         ) {
             double x = x_pos + (msgs.ranges[i])*cos(position_theta+angles[i]);
             double y = y_pos + (msgs.ranges[i])*sin(position_theta+angles[i]);
-            //this->plotSonar(x_pos, y_pos, x, y);
+            this->plotSonar(x_pos, y_pos, x, y);
         }
     }
 }   
@@ -54,7 +160,7 @@ void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
         ) {
             double x = x_pos + (msgs.ranges[i])*cos(angle);
             double y = y_pos + (msgs.ranges[i])*sin(angle);
-            //this->plotKinect(x_pos, y_pos, x, y);
+            this->plotKinect(x_pos, y_pos, x, y);
         }
         angle = angle + 1*angle_increment;
         i += 1;
@@ -346,7 +452,15 @@ int main(int argc, char **argv) {
             usage();
         }
     }
-    PointRobot robot (argv[1], 0.3, 0.1);
+    std::vector< std::vector<float> > v;
+    v.resize(GRANULARITY);
+    for (int i=0; i < v.size(); i++) {
+        v[i].resize(GRANULARITY);
+        for (int j=0; j < v.size(); j++) {
+            v[i][j] = 0.5f;
+        }
+    }
+    PointRobot robot (argv[1], 0.3, 0.1, v);
     robot.run(argc, argv, run_kinect, run_sonar);
     ros::shutdown();
 }
