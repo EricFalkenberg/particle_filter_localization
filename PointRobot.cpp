@@ -6,11 +6,16 @@
     @param VARIANCE The amount of error we are willing to allow
 */
 PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
+    std::string map_name = "src/project/src/map.info";
+    this->MAP_WIDTH = 2000;
+    this->MAP_HEIGHT = 700;
+    this->MAP_DATA = new int8_t[this->MAP_WIDTH*this->MAP_HEIGHT];
+    this->read_image(map_name.c_str());
     this->destinations = this->read_file(fname);
     this->VARIANCE = VARIANCE;
     this->ANGULAR_VELOCITY = 0.0;
     this->DEFAULT_SPEED = SPEED;
-    *(this->localizer) = new Localizer();
+    *(this->localizer) = Localizer();
 }
 
 void PointRobot::whereAmI() {
@@ -231,7 +236,30 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
     state.state = 1;
     motor_state.publish(state);
 
-    
+    // Publish a latched occupancy grid / map to RVIZ
+    ros::Publisher static_map = n.advertise<nav_msgs::OccupancyGrid>("static_map", 1000, true);
+    nav_msgs::OccupancyGrid grid;
+    std::vector<signed char> data(this->MAP_DATA, this->MAP_DATA+(this->MAP_WIDTH*this->MAP_HEIGHT));
+    grid.data            = data;
+    grid.info.resolution = 0.0633;
+    grid.info.width      = this->MAP_WIDTH;
+    grid.info.height     = this->MAP_HEIGHT;
+    grid.info.origin.position.x = 0.0-grid.info.resolution*((double)this->MAP_WIDTH)/2;
+    grid.info.origin.position.y = 0.0-grid.info.resolution*((double)this->MAP_HEIGHT)/2;
+    static_map.publish(grid);
+
+    // Test the pose estimation pusblisher with RVIZ, the generation of points will eventually
+    // be offloaded to Loaclizer.
+    ros::Publisher pointCloudTest = n.advertise<geometry_msgs::PoseArray>("point_cloud", 1000, true);
+    geometry_msgs::PoseArray arr;
+    arr.header.frame_id = "/map";
+    geometry_msgs::Pose tmp;
+    tmp.position.x = 8.0;
+    tmp.position.y = -0.5;
+    tmp.orientation = tf::createQuaternionMsgFromYaw(PI/2);
+    arr.poses.push_back(tmp);
+    pointCloudTest.publish(arr);
+
     // Create a odom subscriber so that the robot can tell where it is
     ros::Subscriber vel = n.subscribe<nav_msgs::Odometry>("pose", 1000, &PointRobot::odomCallback, this);
     ros::Subscriber kinect;
@@ -307,6 +335,33 @@ std::queue<dest> PointRobot::read_file(char *file) {
         destinations.push(d);
     } while (!read.eof());
     return destinations;
+}
+
+void PointRobot::read_image(const char *file) {
+    std::ifstream read(file);
+    std::string s;
+    int p_val;
+    int mapIdx = this->MAP_WIDTH*this->MAP_HEIGHT - this->MAP_WIDTH;
+    do {
+        getline(read, s);
+        if (
+            read.eof()
+        ) {
+
+            break;
+        }
+        p_val = atoi(s.c_str());
+        if (p_val != 0) {
+            this->MAP_DATA[mapIdx] = 0;
+        }
+        else {
+            this->MAP_DATA[mapIdx] = 100;
+        }
+        mapIdx++;
+        if (mapIdx % this->MAP_WIDTH == 0) {
+            mapIdx -= 2*this->MAP_WIDTH;
+        }
+    } while (!read.eof());
 }
 
 /**

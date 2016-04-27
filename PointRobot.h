@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <string>
 #include <iostream>
 #include <queue>
@@ -11,7 +12,12 @@
 #include "ros/console.h"
 #include "geometry_msgs/Twist.h"
 #include "geometry_msgs/Pose.h"
+#include "geometry_msgs/PoseArray.h"
+#include "geometry_msgs/Quaternion.h"
+#include <tf/transform_broadcaster.h>
 #include "nav_msgs/Odometry.h"
+#include "nav_msgs/OccupancyGrid.h"
+#include "nav_msgs/MapMetaData.h"
 #include "sensor_msgs/LaserScan.h"
 #include "p2os_msgs/MotorState.h"
 #include "p2os_msgs/SonarArray.h"
@@ -32,6 +38,9 @@ struct dest {
 
 class PointRobot {
 private:
+    int8_t *MAP_DATA;
+    int32_t MAP_WIDTH;
+    int32_t MAP_HEIGHT;
     Localizer *localizer;
     // The amout of error we will allow.
     double VARIANCE;
@@ -56,6 +65,7 @@ public:
     double getForwardVelocity();
     int run(int argc, char** argv, bool run_kinect, bool run_sonar);
     std::queue<dest> read_file(char *file);
+    void read_image(const char *file);
 };
 
 
