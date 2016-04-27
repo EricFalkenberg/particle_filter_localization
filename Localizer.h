@@ -4,7 +4,7 @@ class Localizer {
     public:
         // public members
         Localizer();
-}
+};
 
 class Particle {
     private:
@@ -15,4 +15,4 @@ class Particle {
         double y;
         double theta;
         Particle(double x, double y, double theta);
-}
+};
