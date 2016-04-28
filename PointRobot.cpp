@@ -6,7 +6,7 @@
     @param VARIANCE The amount of error we are willing to allow
 */
 PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
-    std::string map_name = "src/project/src/map.info";
+    std::string map_name = "src/PointRobot/src/map.info";
     this->MAP_WIDTH = 2000;
     this->MAP_HEIGHT = 700;
     this->MAP_DATA = new int8_t[this->MAP_WIDTH*this->MAP_HEIGHT];
