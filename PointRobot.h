@@ -54,6 +54,8 @@ private:
     geometry_msgs::Pose pose;
     // The twist information returned from /r1/odom
     geometry_msgs::Twist twist;
+
+    ros::Publisher point_cloud_pub;
 public:
     PointRobot(char* fname, double SPEED, double VARIANCE);
     void whereAmI();

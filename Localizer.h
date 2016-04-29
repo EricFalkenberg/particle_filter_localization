@@ -26,7 +26,7 @@ class Localizer {
         // public members
         Localizer();
 
-        void update_location(nav_msgs::Odometry* odom_msg);
+        void update_location(nav_msgs::Odometry odom_msg);
 
         geometry_msgs::PoseArray get_particle_poses();
 };

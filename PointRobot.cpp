@@ -15,7 +15,10 @@ PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
     this->VARIANCE = VARIANCE;
     this->ANGULAR_VELOCITY = 0.0;
     this->DEFAULT_SPEED = SPEED;
-    *(this->localizer) = Localizer();
+    this->localizer = new Localizer();
+
+    printf("suhh dude\n");
+
 }
 
 void PointRobot::whereAmI() {
@@ -70,12 +73,19 @@ void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
     retrieved from /r1/odom
     @param msgs The message received from /r1/odom
 */
-void PointRobot::odomCallback(const nav_msgs::Odometry msgs) {
+void PointRobot::odomCallback(nav_msgs::Odometry msgs) {
     this->pose  = msgs.pose.pose;
     this->twist = msgs.twist.twist;
     float position_theta = 2*atan2(pose.orientation.z, pose.orientation.w);
     float x_pos = pose.position.x;
     float y_pos = pose.position.y;
+
+    localizer->update_location(msgs);
+    geometry_msgs::PoseArray arr = localizer->get_particle_poses();
+
+    printf("this: %f", arr.poses[0].position.x);
+
+    point_cloud_pub.publish(arr);
 }
     
 /**
@@ -250,32 +260,26 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
 
     // Test the pose estimation pusblisher with RVIZ, the generation of points will eventually
     // be offloaded to Loaclizer.
-    ros::Publisher pointCloudTest = n.advertise<geometry_msgs::PoseArray>("point_cloud", 1000, true);
-    geometry_msgs::PoseArray arr;
-    arr.header.frame_id = "/map";
-    geometry_msgs::Pose tmp;
-    tmp.position.x = 8.0;
-    tmp.position.y = -0.5;
-    tmp.orientation = tf::createQuaternionMsgFromYaw(PI/2);
-    arr.poses.push_back(tmp);
-    pointCloudTest.publish(arr);
+    
+    point_cloud_pub = n.advertise<geometry_msgs::PoseArray>("point_cloud", 1000);
+    
 
     // Create a odom subscriber so that the robot can tell where it is
-    ros::Subscriber vel = n.subscribe<nav_msgs::Odometry>("pose", 1000, &PointRobot::odomCallback, this);
+    ros::Subscriber vel = n.subscribe<nav_msgs::Odometry>("/r1/odom/", 1000, &PointRobot::odomCallback, this);
     ros::Subscriber kinect;
     ros::Subscriber sonar;
     if (
         run_kinect
     ) {
-        kinect = n.subscribe<sensor_msgs::LaserScan>("scan", 50, &PointRobot::kinectCallback, this);
+        kinect = n.subscribe<sensor_msgs::LaserScan>("/r1/kinect_laser/scan", 50, &PointRobot::kinectCallback, this);
     }
     if (
         run_sonar
     ) {
-        sonar  = n.subscribe<p2os_msgs::SonarArray>("sonar", 50, &PointRobot::sonarCallback, this);        
+        sonar  = n.subscribe<p2os_msgs::SonarArray>("/r1/pseudosonar/scan", 50, &PointRobot::sonarCallback, this);        
     }
     // Create the motion publisher and set the loop rate
-    ros::Publisher motion = n.advertise<geometry_msgs::Twist>("cmd_vel", 1000);
+    ros::Publisher motion = n.advertise<geometry_msgs::Twist>("/r1/cmd_vel", 1000);
     ros::Rate loop_rate(10);
 
     // Main event loop
