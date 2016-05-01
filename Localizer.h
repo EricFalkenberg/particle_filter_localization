@@ -13,6 +13,7 @@ class Particle {
         double x;
         double y;
         double theta;
+        double weight;
         Particle(double x, double y, double theta);
 
         void update_location(double delta_x, double delta_y, double delta_theta);
@@ -22,9 +23,21 @@ class Localizer {
     private:
         std::vector<Particle*> particles;
         nav_msgs::Odometry* last_odom;
+
+        std::vector< std::vector<double> > starting_locations;
+
+        void create_particles_around(double x, double y, double theta);
+
+        int8_t *MAP_DATA;
+        int32_t MAP_WIDTH;
+        int32_t MAP_HEIGHT;
+        double MAP_RESOLUTION;
+
+        void resample();
+
     public:
         // public members
-        Localizer();
+        Localizer(int8_t *MAP_DATA, int32_t MAP_WIDTH, int32_t MAP_HEIGHT, double MAP_RESOLUTION);
 
         void update_location(nav_msgs::Odometry odom_msg);
 

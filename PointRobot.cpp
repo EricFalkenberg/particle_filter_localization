@@ -10,14 +10,13 @@ PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
     this->MAP_WIDTH = 2000;
     this->MAP_HEIGHT = 700;
     this->MAP_DATA = new int8_t[this->MAP_WIDTH*this->MAP_HEIGHT];
+    this->MAP_RESOLUTION = 0.0633;
     this->read_image(map_name.c_str());
     this->destinations = this->read_file(fname);
     this->VARIANCE = VARIANCE;
     this->ANGULAR_VELOCITY = 0.0;
     this->DEFAULT_SPEED = SPEED;
-    this->localizer = new Localizer();
-
-    printf("suhh dude\n");
+    this->localizer = new Localizer(MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION);
 
 }
 
@@ -101,79 +100,35 @@ double PointRobot::getAngularVelocity() {
     double y_pos            = this->pose.position.y;
     double dest_x           = this->destinations.front().x;
     double dest_y           = this->destinations.front().y;
-    double position_theta   = 2*atan2(pose.orientation.z, pose.orientation.w);
+    double z_orient         = this->pose.orientation.z;
+    double w_orient         = this->pose.orientation.w;
+    // double position_theta   = 2*atan2(pose.orientation.z, pose.orientation.w);
     double delta_x          = dest_x-x_pos;
     double delta_y          = dest_y-y_pos;
 
-    if (
-        delta_x == 0.0 
-        || delta_y == 0.0
-    ) {
-        // If the robot is inline with the destination,
-        // the destination theta is 0.
-        destination_theta = 0.0;
+    float angle = atan2(dest_y - y_pos, dest_x - x_pos);
+
+    double curangle = atan2(2 * (w_orient * z_orient), w_orient*w_orient - z_orient*z_orient);
+
+
+    double anglediff = angle - curangle;
+
+
+    if(anglediff > PI){
+        anglediff -= 2*PI;
     }
-    else if (
-        delta_x > 0.0 
-        && delta_y > 0.0
-    ) {
-        // First Quadrant.
-        destination_theta = atan(delta_y/delta_x);
-    }
-    else if (
-        delta_x < 0.0
-        && delta_y > 0.0
-    ) {
-        // Second Quadrant.
-        destination_theta = PI + atan(delta_y/delta_x);
-    }
-    else if (
-        delta_x < 0.0
-        && delta_y < 0.0
-    ) {
-        // Third Quadrant.
-        destination_theta = PI + atan(delta_y/delta_x);
-    }
-    else {
-        // Fourth Quadrant.
-        destination_theta = 2*PI + atan(delta_y/delta_x);
+    else if(anglediff < -PI){
+        anglediff += 2*PI;
     }
 
-    // Detect whether or not position_theta is negative and correct it.
-    if (
-        position_theta < 0.0
-    ) { 
-        position_theta  = 2*PI + position_theta; 
+
+    if(fabs(anglediff)  <= .1){
+        ANGULAR_VELOCITY = .08 * DEFAULT_SPEED * anglediff/fabs(anglediff);
+    }
+    else{
+        ANGULAR_VELOCITY = DEFAULT_SPEED * anglediff/fabs(anglediff);
     }
 
-    // Calculate the angle we still need to turn.
-    delta_theta = destination_theta - position_theta;
-    if (
-        fabs(delta_theta) > PI
-    ) {
-        delta_theta *= -1;
-    }
-    // Alter the robots angular velocity based on the above calculated info.
-    if (
-        delta_theta >= -2*VARIANCE
-        && delta_theta <= 2*VARIANCE
-    ) {
-        ANGULAR_VELOCITY = 0.0;
-    }
-    else if (
-        ANGULAR_VELOCITY == 0.0
-    ) {
-        if (
-            delta_theta <= 0
-        ) {
-            ANGULAR_VELOCITY = -1*DEFAULT_SPEED;
-        }
-        else if (
-            delta_theta > 0
-        ) {
-            ANGULAR_VELOCITY = 1*DEFAULT_SPEED;
-        }
-    }
 
     // Return
     return ANGULAR_VELOCITY;
@@ -251,7 +206,7 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
     nav_msgs::OccupancyGrid grid;
     std::vector<signed char> data(this->MAP_DATA, this->MAP_DATA+(this->MAP_WIDTH*this->MAP_HEIGHT));
     grid.data            = data;
-    grid.info.resolution = 0.0633;
+    grid.info.resolution = MAP_RESOLUTION;
     grid.info.width      = this->MAP_WIDTH;
     grid.info.height     = this->MAP_HEIGHT;
     grid.info.origin.position.x = 0.0-grid.info.resolution*((double)this->MAP_WIDTH)/2;
@@ -300,11 +255,36 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
         }
 
         // Get the angular velocity of the PointRobot
+
+
+
+        double z_orient         = this->pose.orientation.z;
+        double w_orient         = this->pose.orientation.w;
+        double x_pos            = this->pose.position.x;
+        double y_pos            = this->pose.position.y;
+        double dest_x           = this->destinations.front().x;
+        double dest_y           = this->destinations.front().y;
+
+        float angle = atan2(dest_y - y_pos, dest_x - x_pos);
+
+        double curangle = atan2(2 * (w_orient * z_orient), w_orient*w_orient - z_orient*z_orient);
+
+
+        double anglediff = angle - curangle;
+
+
+        if(anglediff > PI){
+            anglediff -= 2*PI;
+        }
+        else if(anglediff < -PI){
+            anglediff += 2*PI;
+        }
         msg.angular.z = this->getAngularVelocity();        
         // If we are not currently turning, calculate the forward velocity
         // of the PointRobot
         if (
-            msg.angular.z == 0.0
+            fabs(anglediff) <= .1
+            // abs(msg.angular.z) == 0.0
         ) {
             msg.linear.x = this->getForwardVelocity();
         }

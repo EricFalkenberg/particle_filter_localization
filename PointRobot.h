@@ -41,6 +41,8 @@ private:
     int8_t *MAP_DATA;
     int32_t MAP_WIDTH;
     int32_t MAP_HEIGHT;
+    double MAP_RESOLUTION;
+
     Localizer *localizer;
     // The amout of error we will allow.
     double VARIANCE;
