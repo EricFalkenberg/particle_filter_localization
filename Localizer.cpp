@@ -92,17 +92,17 @@ void Localizer::create_particles_around(double x, double y, double theta){
 
     for(int i = 0; i < NUM_POINTS/6; i++){
         particles.push_back(new Particle(
-            x + (rand() % (3 * (int)NUM_POINTS) - 1 * NUM_POINTS) / NUM_POINTS,
-            y + (rand() % (3 * (int)NUM_POINTS) - 1 * NUM_POINTS) / NUM_POINTS,
-            theta + PI/4 * ((rand() % (3 * (int)NUM_POINTS) - 1 * NUM_POINTS) / NUM_POINTS) 
+            x + (rand() % (2 * (int)NUM_POINTS) - 1 * NUM_POINTS) / NUM_POINTS,
+            y + (rand() % (2 * (int)NUM_POINTS) - 1 * NUM_POINTS) / NUM_POINTS,
+            theta + PI/4 * ((rand() % (2 * (int)NUM_POINTS) - 1 * NUM_POINTS) / NUM_POINTS) 
         ));
     }
 }
 
 geometry_msgs::PoseArray Localizer::get_particle_poses(){
     geometry_msgs::PoseArray particle_poses;
-       particle_poses.header.frame_id = "/map";
-
+    particle_poses.header.frame_id = "/map";
+    printf("getting poses\n");
     for(int i = 0; i < particles.size(); i++){
         geometry_msgs::Pose tmp;
         tmp.position.x = particles[i]->x;
@@ -110,7 +110,7 @@ geometry_msgs::PoseArray Localizer::get_particle_poses(){
         tmp.orientation = tf::createQuaternionMsgFromYaw(particles[i]->theta);
         particle_poses.poses.push_back(tmp);
     }
-
+    printf("done getting poses\n");
     return particle_poses;
 }
 
@@ -147,6 +147,7 @@ void Localizer::update_location(nav_msgs::Odometry odom_msg) {
     }
 
     resample();
+    printf("new particles size after: %d\n", (int)particles.size());
 
     this->last_odom->pose.pose.position.x = odom_msg.pose.pose.position.x;
     this->last_odom->pose.pose.position.y = odom_msg.pose.pose.position.y;
@@ -154,6 +155,7 @@ void Localizer::update_location(nav_msgs::Odometry odom_msg) {
 
     this->last_odom->pose.pose.orientation.w = odom_msg.pose.pose.orientation.w;
     this->last_odom->pose.pose.orientation.z = odom_msg.pose.pose.orientation.z;
+    printf("done updating\n");
 }
 
 void Localizer::resample(){
@@ -167,7 +169,7 @@ void Localizer::resample(){
     for(int i = 0; i < particles.size(); i++){
         // printf("1.1\n");
         int index = (int)
-            (MAP_HEIGHT / 2 - particles[i]->y/MAP_RESOLUTION) * MAP_WIDTH
+            (MAP_HEIGHT / 2 + particles[i]->y/MAP_RESOLUTION) * MAP_WIDTH
             + (int)(particles[i]->x/MAP_RESOLUTION + MAP_WIDTH/2);
         // printf("%d\n", index);
         if(
@@ -179,10 +181,10 @@ void Localizer::resample(){
         }
         int pixel_val = MAP_DATA[index];
         
-        printf("x: %f, y: %f, 'x': %d, 'y': %d, index: %d, val: %d, size:%d, weightsum:%f\n", particles[i]->x, particles[i]->y, (int)(particles[i]->x/MAP_RESOLUTION + MAP_WIDTH/2), (int)((MAP_HEIGHT / 2 - particles[i]->y/MAP_RESOLUTION)), index, pixel_val, (int)particles.size(), weight_sum);
+        // printf("x: %f, y: %f, 'x': %d, 'y': %d, index: %d, val: %d, size:%d, weightsum:%f\n", particles[i]->x, particles[i]->y, (int)(particles[i]->x/MAP_RESOLUTION + MAP_WIDTH/2), (int)((MAP_HEIGHT / 2 - particles[i]->y/MAP_RESOLUTION)), index, pixel_val, (int)particles.size(), weight_sum);
         // printf("1.2\n");
         if(
-            pixel_val == 0
+            pixel_val == 100
         ) {
             particles[i]->weight = 0;
         }
@@ -205,8 +207,9 @@ void Localizer::resample(){
     printf("q\n");
 
     for(int i = 0; i < NUM_POINTS; i++){
-        double sampled_alpha =  (rand() % (2 * (int)NUM_POINTS) - 1 * NUM_POINTS) / NUM_POINTS;
-
+        // double sampled_alpha =  (rand() % (2 * (int)NUM_POINTS) - 1 * NUM_POINTS) / NUM_POINTS;
+        double sampled_alpha = (rand() % (1 * (int)NUM_POINTS)) / NUM_POINTS;
+        // printf("sampled: %f\n", sampled_alpha);
         // int count = 0;
         // for(double j = 0; j < 1; j+= alphas[count]){
         //     // printf("%f")
@@ -221,16 +224,29 @@ void Localizer::resample(){
         // }
         double alpha_sum = 0;
         for(int j = 0; j < alphas.size(); j++){
+            alpha_sum += alphas[j];
             if(
                 alpha_sum >= sampled_alpha
             ) {
-                new_particles.push_back(new Particle(particles[j]->x, particles[j]->y, particles[j]->theta));
+                if(j > 0){
+                    // printf("weight: %f, alpha: %f, alpha_sum: %f, sampled_alpha: %f, last weight: %f, last alpha: %f\n", particles[j]->weight, alphas[j], alpha_sum, sampled_alpha, particles[j-1]->weight, alphas[j-1]);
+                }
+                // new_particles.push_back(new Particle(particles[j]->x, particles[j]->y, particles[j]->theta));
+
+                new_particles.push_back(new Particle(
+                    particles[j]->x + (rand() % (2 * (int)NUM_POINTS) - 1 * NUM_POINTS) / (NUM_POINTS*100),
+                    particles[j]->y + (rand() % (2 * (int)NUM_POINTS) - 1 * NUM_POINTS) / (NUM_POINTS*100),
+                    particles[j]->theta + PI/4 * ((rand() % (2 * (int)NUM_POINTS) - 1 * NUM_POINTS) / (NUM_POINTS*100)) 
+                ));
                 break;
             }
         }
     }
 
+    printf("current particles size: %d, new particles size: %d\n", (int)particles.size(), (int)new_particles.size());
+
     printf("3\n");
 
     particles = new_particles;
+    printf("4?\n");
 }

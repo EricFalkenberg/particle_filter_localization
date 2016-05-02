@@ -73,6 +73,7 @@ void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
     @param msgs The message received from /r1/odom
 */
 void PointRobot::odomCallback(nav_msgs::Odometry msgs) {
+    printf("in the callback\n");
     this->pose  = msgs.pose.pose;
     this->twist = msgs.twist.twist;
     float position_theta = 2*atan2(pose.orientation.z, pose.orientation.w);
@@ -82,7 +83,9 @@ void PointRobot::odomCallback(nav_msgs::Odometry msgs) {
     localizer->update_location(msgs);
     geometry_msgs::PoseArray arr = localizer->get_particle_poses();
 
-    printf("this: %f", arr.poses[0].position.x);
+    printf("arrsize: %d\n", (int)arr.poses.size());
+
+    // printf("this: %f\n", arr.poses[0].position.x);
 
     point_cloud_pub.publish(arr);
 }
@@ -241,6 +244,7 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
 
     while (ros::ok()) 
     {
+        printf("int the run\n");
         geometry_msgs::Twist msg;
         // Allow the subscriber callbacks to fire
         ros::spinOnce();
