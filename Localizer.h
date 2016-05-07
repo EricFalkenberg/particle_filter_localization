@@ -22,7 +22,7 @@ class Particle {
 class Localizer {
     private:
         std::vector<Particle*> particles;
-        nav_msgs::Odometry* last_odom;
+        geometry_msgs::Pose* last_odom;
 
         std::vector< std::vector<double> > starting_locations;
 
@@ -39,7 +39,7 @@ class Localizer {
         // public members
         Localizer(int8_t *MAP_DATA, int32_t MAP_WIDTH, int32_t MAP_HEIGHT, double MAP_RESOLUTION);
 
-        void update_location(nav_msgs::Odometry odom_msg);
+        void update_location(geometry_msgs::Pose pose_msg);
 
         geometry_msgs::PoseArray get_particle_poses();
 };

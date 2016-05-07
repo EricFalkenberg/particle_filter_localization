@@ -6,7 +6,7 @@
     @param VARIANCE The amount of error we are willing to allow
 */
 PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
-    std::string map_name = "src/PointRobot/src/map.info";
+    std::string map_name = "src/point_robot/src/map.info";
     this->MAP_WIDTH = 2000;
     this->MAP_HEIGHT = 700;
     this->MAP_DATA = new int8_t[this->MAP_WIDTH*this->MAP_HEIGHT];
@@ -21,50 +21,13 @@ PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
 }
 
 void PointRobot::whereAmI() {
-    // DO NOTHING FOR NOW
+    localizer->update_location(this->pose);
+    geometry_msgs::PoseArray arr = localizer->get_particle_poses();
+    point_cloud_pub.publish(arr);
 }
 
 void PointRobot::updateMap() {
     // DO NOTHING FOR NOW
-}
-
-void PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
-    boost::timer t = boost::timer();
-    double x_pos = pose.position.x;
-    double y_pos = pose.position.y;
-    double position_theta = 2*atan2(pose.orientation.z, pose.orientation.w);
-    double angles[] = {-PI/4, -PI/7.2, -PI/12, -PI/36, PI/36, PI/12, PI/7.2, PI/4};
-    for (int i = 0; i < 9; i++) {
-        if (
-            msgs.ranges[i] > 0.0
-        ) {
-            double x = x_pos + (msgs.ranges[i])*cos(position_theta+angles[i]);
-            double y = y_pos + (msgs.ranges[i])*sin(position_theta+angles[i]);
-        }
-    }
-}   
-
-void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
-    boost::timer t = boost::timer();
-    double x_pos = pose.position.x;
-    double y_pos = pose.position.y;
-    double position_theta = 2*atan2(pose.orientation.z, pose.orientation.w);
-    double angle_increment = msgs.angle_increment;
-    double angle = position_theta + msgs.angle_min;
-    double max_angle = position_theta + msgs.angle_max;
-    int midpoint = (fabs(msgs.angle_min - msgs.angle_max) / angle_increment) / 2;
-    int i = 45;
-    angle = angle + angle_increment*45;
-    while (angle < max_angle && i < 638-45) {
-        if (
-            ! isnan(msgs.ranges[i])
-        ) {
-            double x = x_pos + (msgs.ranges[i])*cos(angle);
-            double y = y_pos + (msgs.ranges[i])*sin(angle);
-        }
-        angle = angle + 1*angle_increment;
-        i += 1;
-    }
 }
 
 /**
@@ -73,22 +36,50 @@ void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
     @param msgs The message received from /r1/odom
 */
 void PointRobot::odomCallback(nav_msgs::Odometry msgs) {
-    printf("in the callback\n");
     this->pose  = msgs.pose.pose;
-    this->twist = msgs.twist.twist;
-    float position_theta = 2*atan2(pose.orientation.z, pose.orientation.w);
-    float x_pos = pose.position.x;
-    float y_pos = pose.position.y;
-
-    localizer->update_location(msgs);
-    geometry_msgs::PoseArray arr = localizer->get_particle_poses();
-
-    printf("arrsize: %d\n", (int)arr.poses.size());
-
-    // printf("this: %f\n", arr.poses[0].position.x);
-
-    point_cloud_pub.publish(arr);
 }
+
+void PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
+    this->sonar_data = msgs;
+    //boost::timer t = boost::timer();
+    //double x_pos = pose.osition.x;
+    //double y_pos = pose.osition.y;
+    //double position_theta = 2*atan2(pose.rientation.z, pose.orientation.w);
+    //double angles[] = {-PI/4, -PI/7.2, -PI/12, -PI/36, PI/36, PI/12, PI/7.2, PI/4};
+    //for (int i = 0; i < 9; i++) {
+    //    if (
+    //        msgs.ranges[i] > 0.0
+    //    ) {
+    //        double x = x_pos + (msgs.ranges[i])*cos(position_theta+angles[i]);
+    //        double y = y_pos + (msgs.ranges[i])*sin(position_theta+angles[i]);
+    //    }
+    //}
+}   
+
+void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
+    this->kinect_data = msgs;
+    //boost::timer t = boost::timer();
+    //double x_pos = pose.osition.x;
+    //double y_pos = pose.osition.y;
+    //double position_theta = 2*atan2(pose.rientation.z, pose.orientation.w);
+    //double angle_increment = msgs.angle_increment;
+    //double angle = position_theta + msgs.angle_min;
+    //double max_angle = position_theta + msgs.angle_max;
+    //int midpoint = (fabs(msgs.angle_min - msgs.angle_max) / angle_increment) / 2;
+    //int i = 45;
+    //angle = angle + angle_increment*45;
+    //while (angle < max_angle && i < 638-45) {
+    //    if (
+    //        ! isnan(msgs.ranges[i])
+    //    ) {
+    //        double x = x_pos + (msgs.ranges[i])*cos(angle);
+    //        double y = y_pos + (msgs.ranges[i])*sin(angle);
+    //    }
+    //    angle = angle + 1*angle_increment;
+    //    i += 1;
+    //}
+}
+
     
 /**
     When called, this function will determine the angular velocity that
@@ -105,7 +96,7 @@ double PointRobot::getAngularVelocity() {
     double dest_y           = this->destinations.front().y;
     double z_orient         = this->pose.orientation.z;
     double w_orient         = this->pose.orientation.w;
-    // double position_theta   = 2*atan2(pose.orientation.z, pose.orientation.w);
+    // double position_theta   = 2*atan2(pose.rientation.z, pose.orientation.w);
     double delta_x          = dest_x-x_pos;
     double delta_y          = dest_y-y_pos;
 
@@ -216,7 +207,7 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
     grid.info.origin.position.y = 0.0-grid.info.resolution*((double)this->MAP_HEIGHT)/2;
     static_map.publish(grid);
 
-    // Test the pose estimation pusblisher with RVIZ, the generation of points will eventually
+    // Test the pose.stimation pusblisher with RVIZ, the generation of points will eventually
     // be offloaded to Loaclizer.
     
     point_cloud_pub = n.advertise<geometry_msgs::PoseArray>("point_cloud", 1000);
@@ -244,10 +235,10 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
 
     while (ros::ok()) 
     {
-        printf("int the run\n");
         geometry_msgs::Twist msg;
         // Allow the subscriber callbacks to fire
         ros::spinOnce();
+        this->whereAmI();
 
         // If our destiinations queue is empty, try to find another location to visit
         // If we have visited all destinations, we can exit

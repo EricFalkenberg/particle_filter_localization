@@ -53,9 +53,11 @@ private:
     // A queue of destination points.
     std::queue<dest> destinations;
     // The pose information returned from /r1/odom
-    geometry_msgs::Pose pose;
+    geometry_msgs::Pose    pose;
+    sensor_msgs::LaserScan kinect_data;
+    p2os_msgs::SonarArray  sonar_data;
     // The twist information returned from /r1/odom
-    geometry_msgs::Twist twist;
+    //geometry_msgs::Twist twist;
 
     ros::Publisher point_cloud_pub;
 public:
