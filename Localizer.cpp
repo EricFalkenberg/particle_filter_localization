@@ -22,15 +22,50 @@ void Particle::update_location(double delta_x, double delta_y, double delta_thet
     this->y += distance * sin(theta);
 }
 
+void Particle::update_weight(sensor_msgs::LaserScan kinect_data, p2os_msgs::SonarArray sonar_data,
+                             int8_t *MAP_DATA, int32_t MAP_WIDTH, int32_t MAP_HEIGHT, double MAP_RESOLUTION) {
+    // PROCESS KINECT DATA
+    double cumulative_error = 0.0;
+    double inc  = 0.01;
+    double curr_angle = this->theta + kinect_data.angle_min;
+    int angleIdx = 0;
+    while (curr_angle < this->theta + kinect_data.angle_max) {
+        double curr_x = this->x;
+        double curr_y = this->y;
+        double curr_r = 0.0;
+        // Starting pixel from slice
+        int index = (int)
+            (MAP_HEIGHT / 2 + curr_y/MAP_RESOLUTION) * MAP_WIDTH
+            + (int)(curr_x/MAP_RESOLUTION + MAP_WIDTH/2); 
+        while (MAP_DATA[index] != 100) {
+            curr_r = curr_r + inc;
+            curr_x = curr_r * cos(curr_angle);
+            curr_y = curr_y * sin(curr_angle);
+            index = (int)
+                (MAP_HEIGHT / 2 + curr_y/MAP_RESOLUTION) * MAP_WIDTH
+                + (int)(curr_x/MAP_RESOLUTION + MAP_WIDTH/2); 
+        }
+        if (curr_r < 8) {
+            cumulative_error = cumulative_error + fabs(kinect_data.ranges[angleIdx]-curr_r);
+        }
+        curr_angle = curr_angle + kinect_data.angle_increment*20;
+        angleIdx = angleIdx + 20;
+    }
+    if (cumulative_error == 0.0) {
+        this->weight = 1.0;
+    }
+    else {
+        this->weight = 1.0/cumulative_error;
+    }
+}
+
 Localizer::Localizer(int8_t *MAP_DATA, int32_t MAP_WIDTH, int32_t MAP_HEIGHT, double MAP_RESOLUTION) {
     this->MAP_DATA = MAP_DATA;
     this->MAP_WIDTH = MAP_WIDTH;
     this->MAP_HEIGHT = MAP_HEIGHT;
     this->MAP_RESOLUTION = MAP_RESOLUTION;
 
-    // //generate points
-    // particles.push_back(new Particle(8.0, -1.0, PI/2));
-
+    //generate points
     starting_locations.push_back(std::vector<double>());
     starting_locations.push_back(std::vector<double>());
     starting_locations.push_back(std::vector<double>());
@@ -120,6 +155,7 @@ void Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::Laser
     // Update all particle locations
     for(int i = 0; i < particles.size(); i++){
         particles[i]->update_location(delta_x, delta_y, delta_theta);
+        particles[i]->update_weight(kinect_data, sonar_data, MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION);
     }
 
     // Resample particles
@@ -132,7 +168,7 @@ void Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::Laser
     this->last_odom->orientation.z = pose_msg.orientation.z;
 }
 
-void Localizer::resample(){
+void Localizer::resample() {
     std::vector<double> alphas;
     std::vector<Particle*> new_particles;
 

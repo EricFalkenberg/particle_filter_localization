@@ -19,6 +19,8 @@ class Particle {
         Particle(double x, double y, double theta);
 
         void update_location(double delta_x, double delta_y, double delta_theta);
+        void update_weight(sensor_msgs::LaserScan kinect_data, p2os_msgs::SonarArray sonar_data,
+                             int8_t *MAP_DATA, int32_t MAP_WIDTH, int32_t MAP_HEIGHT, double MAP_RESOLUTION);
 };
 
 class Localizer {
