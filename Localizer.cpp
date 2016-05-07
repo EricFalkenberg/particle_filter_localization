@@ -97,43 +97,37 @@ geometry_msgs::PoseArray Localizer::get_particle_poses(){
     return particle_poses;
 }
 
-void Localizer::update_location(geometry_msgs::Pose pose_msg) {
-    //calculate deltas
-    //call update on every particle
-
+void Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::LaserScan kinect_data, p2os_msgs::SonarArray sonar_data) {
+    // Record current odom in the case that this is the first iteration.
     if(
         this->last_odom == NULL
     ) {
         last_odom = new geometry_msgs::Pose();
-        // this->last_odom = &odom_msg;
         this->last_odom->position.x = pose_msg.position.x;
         this->last_odom->position.y = pose_msg.position.y;
-        
-
         this->last_odom->orientation.w = pose_msg.orientation.w;
         this->last_odom->orientation.z = pose_msg.orientation.z;
         return;
     }
 
+    // Calculate deltas in x, y, theta
     double delta_x = pose_msg.position.x - this->last_odom->position.x;
     double delta_y = pose_msg.position.y - this->last_odom->position.y;
-
-
-
     double cur_angle = atan2(2 * (pose_msg.orientation.w * pose_msg.orientation.z), pose_msg.orientation.w*pose_msg.orientation.w - pose_msg.orientation.z*pose_msg.orientation.z);
     double last_angle = atan2(2 * (last_odom->orientation.w * last_odom->orientation.z), last_odom->orientation.w*last_odom->orientation.w - last_odom->orientation.z*last_odom->orientation.z);
     double delta_theta = cur_angle - last_angle;
 
+    // Update all particle locations
     for(int i = 0; i < particles.size(); i++){
         particles[i]->update_location(delta_x, delta_y, delta_theta);
     }
 
+    // Resample particles
     resample();
 
+    // Set last odom for use in next iteration
     this->last_odom->position.x = pose_msg.position.x;
     this->last_odom->position.y = pose_msg.position.y;
-    
-
     this->last_odom->orientation.w = pose_msg.orientation.w;
     this->last_odom->orientation.z = pose_msg.orientation.z;
 }

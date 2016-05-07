@@ -21,7 +21,7 @@ PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
 }
 
 void PointRobot::whereAmI() {
-    localizer->update_location(this->pose);
+    localizer->update_location(this->pose, this->kinect_data, this->sonar_data);
     geometry_msgs::PoseArray arr = localizer->get_particle_poses();
     point_cloud_pub.publish(arr);
 }

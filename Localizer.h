@@ -1,6 +1,8 @@
 #include <vector>
 #include "geometry_msgs/PoseArray.h"
 #include "nav_msgs/Odometry.h"
+#include "sensor_msgs/LaserScan.h"
+#include "p2os_msgs/SonarArray.h"
 
 
 
@@ -38,8 +40,6 @@ class Localizer {
     public:
         // public members
         Localizer(int8_t *MAP_DATA, int32_t MAP_WIDTH, int32_t MAP_HEIGHT, double MAP_RESOLUTION);
-
-        void update_location(geometry_msgs::Pose pose_msg);
-
+        void update_location(geometry_msgs::Pose pose_msg, sensor_msgs::LaserScan kinect_data, p2os_msgs::SonarArray sonar_data);
         geometry_msgs::PoseArray get_particle_poses();
 };
