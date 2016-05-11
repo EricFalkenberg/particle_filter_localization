@@ -347,15 +347,7 @@ int main(int argc, char **argv) {
             usage();
         }
     }
-    std::vector< std::vector<float> > v;
-    v.resize(GRANULARITY);
-    for (int i=0; i < v.size(); i++) {
-        v[i].resize(GRANULARITY);
-        for (int j=0; j < v.size(); j++) {
-            v[i][j] = 0.5f;
-        }
-    }
-    PointRobot robot (argv[1], 0.3, 0.1, v);
+    PointRobot robot (argv[1], 0.3, 0.1);
     robot.run(argc, argv, run_kinect, run_sonar);
     ros::shutdown();
 }
