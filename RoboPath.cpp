@@ -18,7 +18,6 @@ MRP
 
 #include <map>
 
-#include <vector>
 
 #include <functional>
 
@@ -27,6 +26,8 @@ MRP
 #include <ostream>
 
 #include <string>
+
+#include "RoboPath.h"
 
 
 
@@ -40,19 +41,7 @@ static float CONVFACTOR = 15.7855;
 
 
 
-class MyPoint{
 
-public:
-
-    int x;
-
-    int y;
-
-    MyPoint(int, int);
-
-    MyPoint(){x=0; y=0;}
-
-};
 
 
 
@@ -487,9 +476,11 @@ vector<MyPoint> neighbors(MyPoint node, Mat image)
 
 
 
-vector<MyPoint> astar(MyPoint start, MyPoint goal)
+vector<MyPoint> astar(double start_x, double start_y, double goal_x, double goal_y)
 
 {
+    MyPoint start(start_x, start_y);
+    MyPoint goal(goal_x, goal_y);
 
     Mat image;
 

@@ -8,6 +8,7 @@
 
 #define NUM_POINTS 1200.
 
+
 Particle::Particle(double x, double y, double theta) {
     this->x = x;
     this->y = y;
@@ -23,7 +24,7 @@ void Particle::update_location(double delta_x, double delta_y, double delta_thet
 }
 
 void Particle::update_weight(sensor_msgs::LaserScan kinect_data, p2os_msgs::SonarArray sonar_data,
-                             int8_t *MAP_DATA, int32_t MAP_WIDTH, int32_t MAP_HEIGHT, double MAP_RESOLUTION, bool sonar_change) {
+                             int8_t *MAP_DATA, int32_t MAP_WIDTH, int32_t MAP_HEIGHT, double MAP_RESOLUTION, bool *sonar_change) {
     
     // printf("starting update\n");
 
@@ -38,38 +39,38 @@ void Particle::update_weight(sensor_msgs::LaserScan kinect_data, p2os_msgs::Sona
     //     curr_angle += 2*3.14150265;
     // }
     int angleIdx = 0;
-    if(sonar_change){
-        sonar_change = false;
-        while (curr_angle < this->theta + kinect_data.angle_max) {
-            // printf("currangle: %f\n", curr_angle);
-            // double curr_x = this->x;
-            // double curr_y = this->y;
-            double curr_r = 0.0;
-            // Starting pixel from slice
-            int index = (int)
-                (MAP_HEIGHT / 2 + this->y/MAP_RESOLUTION) * MAP_WIDTH
-                + (int)(this->x/MAP_RESOLUTION + MAP_WIDTH/2); 
-            while (MAP_DATA[index] != 100) {
-                curr_r += inc;
-                double new_x = this->x + curr_r * cos(curr_angle);
-                double new_y = this->y + curr_r * sin(curr_angle);
-                // printf("old x: %f, new x: %f\n", this->x, new_x);
-                // printf("old y: %f, new y: %f\n", this->y, new_y);
-                // printf("curr_r: %f, curr_angle: %f, cos(curr_angle): %f, sin(curr_angle): %f\n", curr_r, curr_angle, cos(curr_angle), sin(curr_angle));
-                // curr_x += curr_r * cos(curr_angle);
-                // curr_y += curr_r * sin(curr_angle);
-                index = (int)
-                    (MAP_HEIGHT / 2 + new_y/MAP_RESOLUTION) * MAP_WIDTH
-                    + (int)(new_x/MAP_RESOLUTION + MAP_WIDTH/2); 
-                // printf("curr_r: %f\n", curr_r);
-                if(curr_r >= 10.0){
-                    break;
-                }
+    while (curr_angle < this->theta + kinect_data.angle_max) {
+        // printf("currangle: %f\n", curr_angle);
+        // double curr_x = this->x;
+        // double curr_y = this->y;
+        double curr_r = 0.0;
+        // Starting pixel from slice
+        int index = (int)
+            (MAP_HEIGHT / 2 + this->y/MAP_RESOLUTION) * MAP_WIDTH
+            + (int)(this->x/MAP_RESOLUTION + MAP_WIDTH/2); 
+        while (MAP_DATA[index] != 100) {
+            curr_r += inc;
+            double new_x = this->x + curr_r * cos(curr_angle);
+            double new_y = this->y + curr_r * sin(curr_angle);
+            // printf("old x: %f, new x: %f\n", this->x, new_x);
+            // printf("old y: %f, new y: %f\n", this->y, new_y);
+            // printf("curr_r: %f, curr_angle: %f, cos(curr_angle): %f, sin(curr_angle): %f\n", curr_r, curr_angle, cos(curr_angle), sin(curr_angle));
+            // curr_x += curr_r * cos(curr_angle);
+            // curr_y += curr_r * sin(curr_angle);
+            index = (int)
+                (MAP_HEIGHT / 2 + new_y/MAP_RESOLUTION) * MAP_WIDTH
+                + (int)(new_x/MAP_RESOLUTION + MAP_WIDTH/2); 
+            // printf("curr_r: %f\n", curr_r);
+            if(curr_r >= 10.0){
+                break;
             }
-            cumulative_error = cumulative_error + fabs(kinect_data.ranges[angleIdx]-curr_r);
-            curr_angle = curr_angle + kinect_data.angle_increment*20;
-            angleIdx = angleIdx + 20;
         }
+        cumulative_error = cumulative_error + fabs(kinect_data.ranges[angleIdx]-curr_r);
+        curr_angle = curr_angle + kinect_data.angle_increment*20;
+        angleIdx = angleIdx + 20;
+    }
+    if(*sonar_change == true){
+        *sonar_change = false;
         double angles[] = {-PI/4, -PI/7.2, -PI/12, -PI/36, PI/36, PI/12, PI/7.2, PI/4};
         for (int i = 0; i < 8; i++) {
             if (sonar_data.ranges[i] > 0.0) {
@@ -180,7 +181,7 @@ geometry_msgs::PoseArray Localizer::get_particle_poses(){
     return particle_poses;
 }
 
-void Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::LaserScan kinect_data, p2os_msgs::SonarArray sonar_data, bool sonar_change) {
+Particle* Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::LaserScan kinect_data, p2os_msgs::SonarArray sonar_data, bool *sonar_change) {
     // Record current odom in the case that this is the first iteration.
     if(
         this->last_odom == NULL
@@ -190,7 +191,7 @@ void Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::Laser
         this->last_odom->position.y = pose_msg.position.y;
         this->last_odom->orientation.w = pose_msg.orientation.w;
         this->last_odom->orientation.z = pose_msg.orientation.z;
-        return;
+        return NULL;
     }
 
     // Calculate deltas in x, y, theta
@@ -204,18 +205,50 @@ void Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::Laser
     for(int i = 0; i < particles.size(); i++){
         particles[i]->update_location(delta_x, delta_y, delta_theta);
         particles[i]->update_weight(kinect_data, sonar_data, MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION, sonar_change);
+        // printf("weight: %f\n", particles[i]->weight);
     }
 
     // Resample particles
-    if(sonar_change){
+    // if(sonar_change == 1){
         resample();
-    }
+    // }
+
+    // if(sonar_change == 2){
+        Particle* pTest = determine_location(kinect_data, sonar_data, sonar_change);
+        // sonar_change = 0
+        // printf("pTest x: %f, pTest y: %f, pTest theta: %f, pTest weight: %f\n", pTest->x, pTest->y, pTest->theta, pTest->weight);
+    // }
 
     // Set last odom for use in next iteration
     this->last_odom->position.x = pose_msg.position.x;
     this->last_odom->position.y = pose_msg.position.y;
     this->last_odom->orientation.w = pose_msg.orientation.w;
     this->last_odom->orientation.z = pose_msg.orientation.z;
+
+    return pTest;
+}
+
+Particle* Localizer::determine_location(sensor_msgs::LaserScan kinect_data, p2os_msgs::SonarArray sonar_data, bool *sonar_change){
+    double average_x = 0;
+    double average_y = 0;
+    double average_theta = 0;
+
+    for(int i = 0; i < (int)particles.size(); i++){
+        average_x += particles[i]->x;
+        average_y += particles[i]->y;
+        average_theta += particles[i]->theta;
+    }
+
+    if(particles.size() > 0){
+        average_x /= particles.size();
+        average_y /= particles.size();
+        average_theta /= particles.size();
+    }
+
+    Particle* result = new Particle(average_x, average_y, average_theta);
+    result->update_weight(kinect_data, sonar_data, MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION, sonar_change);
+
+    return result;
 }
 
 void Localizer::resample() {

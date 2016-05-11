@@ -1,4 +1,7 @@
 #include "PointRobot.h"
+#include "RoboPath.h"
+
+#define LOCALIZETHRESHOLD .05
 
 /**
     Constructor
@@ -17,13 +20,20 @@ PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
     this->ANGULAR_VELOCITY = 0.0;
     this->DEFAULT_SPEED = SPEED;
     this->localizer = new Localizer(MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION);
-    this->sonar_change = false;
+    this->sonar_change = new bool(false);
 }
 
 void PointRobot::whereAmI() {
-    localizer->update_location(this->pose, this->kinect_data, this->sonar_data, this->sonar_change);
+    suspectedLocation = localizer->update_location(this->pose, this->kinect_data, this->sonar_data, sonar_change);
     geometry_msgs::PoseArray arr = localizer->get_particle_poses();
     point_cloud_pub.publish(arr);
+
+    if(suspectedLocation->weight > LOCALIZETHRESHOLD){
+        //path whatever
+        printf("nailed it!\n");
+        std::vector<MyPoint> pointstest = astar(suspectedLocation->x, suspectedLocation->y, 10, 10);
+        // for(int i = 0; i < pointstest.size(); i++)
+    }
 }
 
 void PointRobot::updateMap() {
@@ -41,7 +51,7 @@ void PointRobot::odomCallback(nav_msgs::Odometry msgs) {
 
 void PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
     this->sonar_data = msgs;
-    sonar_change = true;
+    *sonar_change = false;
 }   
 
 void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
