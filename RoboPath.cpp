@@ -505,174 +505,108 @@ vector<MyPoint> astar(MyPoint start, MyPoint goal)
 
     }
 
-
-
     start.x+=((int)image.cols/2);
-
     goal.x+=((int)image.cols/2);
-
     start.y = ((int)image.rows/2)-start.y;
-
     goal.y = ((int)image.rows/2)-goal.y;
-
-
 
     auto val = image.at<Vec3b>(Point(start.x, start.y));
 
     // If the start is inside of a wall, impossible to navigate
-
     if(val.val[0]!=255)
-
     {
-
         cout << "Start appears in wall" << endl;
-
         return {};
-
     }
 
     // If the goal is inside of a wall, impossible to reach
-
     val = image.at<Vec3b>(Point(goal.x, goal.y));
-
     if(val.val[0]!=255)
-
     {
-
         cout  << "End appears in wall" << endl;
-
         return {};
-
     }
 
-
-
     // TODO: declare some variables and stuff
-
     unordered_set<MyPoint> openset;
-
     unordered_set<MyPoint> closedset;
-
     unordered_map<MyPoint, float, hash<MyPoint>> f_score;
-
     unordered_map<MyPoint, float, hash<MyPoint>> g_score;
-
     unordered_map<MyPoint, MyPoint, hash<MyPoint>> cameFrom;
 
-
-
     g_score[start] = 0;
-
     f_score[start] = g_score[start]+heuristic(start, goal);
 
-
-
     priority_queue<Score, vector<Score>, MoreThanByScore> openQueue;
-
     openQueue.push(Score(f_score[start], start));
-
     openset.insert(openset.begin(), start);
 
-
-
     while(!openset.empty())
-
     {
-
         MyPoint curr = (openQueue.top()).p;
-
         openQueue.pop();
 
-
-
         auto it = openset.find(curr);
-
-        openset.erase(it);
+        if (it!=openset.end())
+            openset.erase(it);
 
         closedset.insert(closedset.begin(), curr);
 
         auto nlist = neighbors(curr, image);
 
-
-
         for (auto n : nlist)
-
         {
-
             //cout << n.x << ", " << n.y << endl;
-
             // Skip if in the closedset
-
             if (closedset.find(n)!=closedset.end())
-
             {
-
                 continue;
-
             }
 
-
-
             auto tentative_g_score = g_score[curr]+distBetween(curr, n);
-
-
-
-            if (closedset.find(n)==closedset.end()
-
-                ||
-
-                tentative_g_score<g_score[n])
-
+            if (closedset.find(n)==closedset.end())
             {
-
-                cameFrom[n]=curr;
-
-                g_score[n]=tentative_g_score;
-
-                f_score[n]=3.1*g_score[n] + 3*heuristic(n, goal);
-
-                if (openset.find(n)==openset.end())
-
+                if(openset.find(n)!=openset.end())
                 {
+                    if(tentative_g_score<g_score[n])
+                    {
+                        cameFrom[n]=curr;
+                        g_score[n]=tentative_g_score;
+                        f_score[n]=g_score[n] + heuristic(n, goal);
+                        openQueue.push(Score(f_score[n], n));
+                    }
+                }
 
+                else 
+                {
+                    cameFrom[n]=curr;
+                    g_score[n]=tentative_g_score;
+                    f_score[n]=g_score[n] + heuristic(n, goal);
                     openset.insert(openset.begin(), n);
-
                     openQueue.push(Score(f_score[n], n));
-
                 }
 
             }
-
-
-
-            if (n == goal)
-
+            else
             {
-
-                //TODO: Compress and return path
-
-                auto ret = reconstruct_path(cameFrom, n, start);
-
-                return path_compression(ret, image);
-
+                cout << "In closed" << endl;
             }
 
+            if (n == goal)
+            {
+                //TODO: Compress and return path
+                auto ret = reconstruct_path(cameFrom, n, start);
+                return path_compression(ret, image);
+            }
         }
-
     }
 
-
-
     return {};
-
 }
 
 
 
 int main()
-
 {
-
     auto shit = astar(MyPoint(int(10.8*CONVFACTOR), int(12.7*CONVFACTOR)), MyPoint(int(-54.5*CONVFACTOR), int(7.6*CONVFACTOR)));
-
 }
