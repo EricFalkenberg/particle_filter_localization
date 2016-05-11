@@ -5,166 +5,29 @@
     @param fname The filename containing all destination points
     @param VARIANCE The amount of error we are willing to allow
 */
-PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE, 
-                       std::vector< std::vector<double> > evidence_grid) {
+PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
+    std::string map_name = "src/PointRobot/src/map.info";
+    this->MAP_WIDTH = 2000;
+    this->MAP_HEIGHT = 700;
+    this->MAP_DATA = new int8_t[this->MAP_WIDTH*this->MAP_HEIGHT];
+    this->MAP_RESOLUTION = 0.0633;
+    this->read_image(map_name.c_str());
     this->destinations = this->read_file(fname);
     this->VARIANCE = VARIANCE;
     this->ANGULAR_VELOCITY = 0.0;
     this->DEFAULT_SPEED = SPEED;
-    this->vec = evidence_grid;
+    this->localizer = new Localizer(MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION);
+    this->sonar_change = false;
 }
 
 void PointRobot::whereAmI() {
-    // DO NOTHING FOR NOW
+    localizer->update_location(this->pose, this->kinect_data, this->sonar_data, this->sonar_change);
+    geometry_msgs::PoseArray arr = localizer->get_particle_poses();
+    point_cloud_pub.publish(arr);
 }
 
 void PointRobot::updateMap() {
     // DO NOTHING FOR NOW
-}
-
-void PointRobot::plotSonar(double x0, double y0, double x1, double y1) {
-    //x0 = floor(x0*1.4);
-    //y0 = floor(y0*1.4);
-    //x1 = floor(x1*1.4);
-    //y1 = floor(y1*1.4);
-    double distance = sqrt((x1-x0)*(x1-x0) + (y1-y0)*(y1-y0));
-    double p;
-    double center = this->vec.size() / 2.0;
-    double dx = abs(x1-x0);
-    double dy = abs(y1-y0);
-    double x  = x0;
-    double y  = y0;
-    double sx = (x0 > x1) ? -1 : 1;
-    double sy = (y0 > y1) ? -1 : 1;
-    if (dx > dy) {
-        double err = dx / 2.0;
-        while (x != x1) {
-            p = this->vec[center-y][center+x];
-            if (p == 1) { p = 0.99; }
-            if (p > 0.01) {
-                p = p/(1-p) * 0.45/0.55;
-                p = p/(1 + p);
-            }
-            this->vec[center-y][center+x] = p;
-            err -= dy;
-            if (err < 0) {
-                y += sy;
-                err += dx;
-            }
-            x += sx;
-        }
-    }
-    else {
-        double err = dy / 2.0;
-        while (y != y1) {
-            p = this->vec[center-y][center+x];
-            if (p == 1) { p = 0.99; }
-            if (p > 0.01) {
-                p = p/(1-p) * 0.45/0.55;
-                p = p/(1 + p);
-            }
-            this->vec[center-y][center+x] = p;
-            err -= dx;
-            if (err < 0) {
-                x += sx;
-                err += dy;
-            }
-            y += sy;
-        }
-    }
-}
-
-void PointRobot::plotKinect(double x0, double y0, double x1, double y1) {
-    //x0 = floor(x0*1.4);
-    //y0 = floor(y0*1.4);
-    //x1 = floor(x1*1.4);
-    //y1 = floor(y1*1.4);
-    double distance = sqrt((x1-x0)*(x1-x0) + (y1-y0)*(y1-y0));
-    double p;
-    double center = this->vec.size() / 2.0;
-    double dx = abs(x1-x0);
-    double dy = abs(y1-y0);
-    double x  = x0;
-    double y  = y0;
-    double sx = (x0 > x1) ? -1 : 1;
-    double sy = (y0 > y1) ? -1 : 1;
-    if (dx > dy) {
-        double err = dx / 2.0;
-        while (x != x1) {
-            p = this->vec[center-y][center+x];
-            if (p == 1) { p = 0.99; }
-            if (p > 0.01) {
-                p = p/(1-p) * 0.45/0.55;
-                p = p/(1 + p);
-            }
-            this->vec[center-y][center+x] = p;
-            err -= dy;
-            if (err < 0) {
-                y += sy;
-                err += dx;
-            }
-            x += sx;
-        }
-    }
-    else {
-        double err = dy / 2.0;
-        while (y != y1) {
-            p = this->vec[center-y][center+x];
-            if (p == 1) { p = 0.99; }
-            if (p > 0.01) {
-                p = p/(1-p) * 0.45/0.55;
-                p = p/(1 + p);
-            }
-            this->vec[center-y][center+x] = p;
-            err -= dx;
-            if (err < 0) {
-                x += sx;
-                err += dy;
-            }
-            y += sy;
-        }
-    }
-}
-
-void PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
-    boost::timer t = boost::timer();
-    double x_pos = pose.position.x;
-    double y_pos = pose.position.y;
-    double position_theta = 2*atan2(pose.orientation.z, pose.orientation.w);
-    double angles[] = {-PI/4, -PI/7.2, -PI/12, -PI/36, PI/36, PI/12, PI/7.2, PI/4};
-    for (int i = 0; i < 9; i++) {
-        if (
-            msgs.ranges[i] > 0.0
-        ) {
-            double x = x_pos + (msgs.ranges[i])*cos(position_theta+angles[i]);
-            double y = y_pos + (msgs.ranges[i])*sin(position_theta+angles[i]);
-            this->plotSonar(x_pos, y_pos, x, y);
-        }
-    }
-}   
-
-void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
-    boost::timer t = boost::timer();
-    double x_pos = pose.position.x;
-    double y_pos = pose.position.y;
-    double position_theta = 2*atan2(pose.orientation.z, pose.orientation.w);
-    double angle_increment = msgs.angle_increment;
-    double angle = position_theta + msgs.angle_min;
-    double max_angle = position_theta + msgs.angle_max;
-    int midpoint = (fabs(msgs.angle_min - msgs.angle_max) / angle_increment) / 2;
-    int i = 45;
-    angle = angle + angle_increment*45;
-    while (angle < max_angle && i < 638-45) {
-        if (
-            ! isnan(msgs.ranges[i])
-        ) {
-            double x = x_pos + (msgs.ranges[i])*cos(angle);
-            double y = y_pos + (msgs.ranges[i])*sin(angle);
-            this->plotKinect(x_pos, y_pos, x, y);
-        }
-        angle = angle + 1*angle_increment;
-        i += 1;
-    }
 }
 
 /**
@@ -172,13 +35,19 @@ void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
     retrieved from /r1/odom
     @param msgs The message received from /r1/odom
 */
-void PointRobot::odomCallback(const nav_msgs::Odometry msgs) {
+void PointRobot::odomCallback(nav_msgs::Odometry msgs) {
     this->pose  = msgs.pose.pose;
-    this->twist = msgs.twist.twist;
-    float position_theta = 2*atan2(pose.orientation.z, pose.orientation.w);
-    float x_pos = pose.position.x;
-    float y_pos = pose.position.y;
 }
+
+void PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
+    this->sonar_data = msgs;
+    sonar_change = true;
+}   
+
+void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
+    this->kinect_data = msgs;
+}
+
     
 /**
     When called, this function will determine the angular velocity that
@@ -193,79 +62,35 @@ double PointRobot::getAngularVelocity() {
     double y_pos            = this->pose.position.y;
     double dest_x           = this->destinations.front().x;
     double dest_y           = this->destinations.front().y;
-    double position_theta   = 2*atan2(pose.orientation.z, pose.orientation.w);
+    double z_orient         = this->pose.orientation.z;
+    double w_orient         = this->pose.orientation.w;
+    // double position_theta   = 2*atan2(pose.rientation.z, pose.orientation.w);
     double delta_x          = dest_x-x_pos;
     double delta_y          = dest_y-y_pos;
 
-    if (
-        delta_x == 0.0 
-        || delta_y == 0.0
-    ) {
-        // If the robot is inline with the destination,
-        // the destination theta is 0.
-        destination_theta = 0.0;
+    float angle = atan2(dest_y - y_pos, dest_x - x_pos);
+
+    double curangle = atan2(2 * (w_orient * z_orient), w_orient*w_orient - z_orient*z_orient);
+
+
+    double anglediff = angle - curangle;
+
+
+    if(anglediff > PI){
+        anglediff -= 2*PI;
     }
-    else if (
-        delta_x > 0.0 
-        && delta_y > 0.0
-    ) {
-        // First Quadrant.
-        destination_theta = atan(delta_y/delta_x);
-    }
-    else if (
-        delta_x < 0.0
-        && delta_y > 0.0
-    ) {
-        // Second Quadrant.
-        destination_theta = PI + atan(delta_y/delta_x);
-    }
-    else if (
-        delta_x < 0.0
-        && delta_y < 0.0
-    ) {
-        // Third Quadrant.
-        destination_theta = PI + atan(delta_y/delta_x);
-    }
-    else {
-        // Fourth Quadrant.
-        destination_theta = 2*PI + atan(delta_y/delta_x);
+    else if(anglediff < -PI){
+        anglediff += 2*PI;
     }
 
-    // Detect whether or not position_theta is negative and correct it.
-    if (
-        position_theta < 0.0
-    ) { 
-        position_theta  = 2*PI + position_theta; 
+
+    if(fabs(anglediff)  <= .1){
+        ANGULAR_VELOCITY = .08 * DEFAULT_SPEED * anglediff/fabs(anglediff);
+    }
+    else{
+        ANGULAR_VELOCITY = DEFAULT_SPEED * anglediff/fabs(anglediff);
     }
 
-    // Calculate the angle we still need to turn.
-    delta_theta = destination_theta - position_theta;
-    if (
-        fabs(delta_theta) > PI
-    ) {
-        delta_theta *= -1;
-    }
-    // Alter the robots angular velocity based on the above calculated info.
-    if (
-        delta_theta >= -2*VARIANCE
-        && delta_theta <= 2*VARIANCE
-    ) {
-        ANGULAR_VELOCITY = 0.0;
-    }
-    else if (
-        ANGULAR_VELOCITY == 0.0
-    ) {
-        if (
-            delta_theta <= 0
-        ) {
-            ANGULAR_VELOCITY = -1*DEFAULT_SPEED;
-        }
-        else if (
-            delta_theta > 0
-        ) {
-            ANGULAR_VELOCITY = 1*DEFAULT_SPEED;
-        }
-    }
 
     // Return
     return ANGULAR_VELOCITY;
@@ -338,23 +163,40 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
     state.state = 1;
     motor_state.publish(state);
 
+    // Publish a latched occupancy grid / map to RVIZ
+    ros::Publisher static_map = n.advertise<nav_msgs::OccupancyGrid>("static_map", 1000, true);
+    nav_msgs::OccupancyGrid grid;
+    std::vector<signed char> data(this->MAP_DATA, this->MAP_DATA+(this->MAP_WIDTH*this->MAP_HEIGHT));
+    grid.data            = data;
+    grid.info.resolution = MAP_RESOLUTION;
+    grid.info.width      = this->MAP_WIDTH;
+    grid.info.height     = this->MAP_HEIGHT;
+    grid.info.origin.position.x = 0.0-grid.info.resolution*((double)this->MAP_WIDTH)/2;
+    grid.info.origin.position.y = 0.0-grid.info.resolution*((double)this->MAP_HEIGHT)/2;
+    static_map.publish(grid);
+
+    // Test the pose.stimation pusblisher with RVIZ, the generation of points will eventually
+    // be offloaded to Loaclizer.
     
+    point_cloud_pub = n.advertise<geometry_msgs::PoseArray>("point_cloud", 1000);
+    
+
     // Create a odom subscriber so that the robot can tell where it is
-    ros::Subscriber vel = n.subscribe<nav_msgs::Odometry>("pose", 1000, &PointRobot::odomCallback, this);
+    ros::Subscriber vel = n.subscribe<nav_msgs::Odometry>("/r1/odom/", 1000, &PointRobot::odomCallback, this);
     ros::Subscriber kinect;
     ros::Subscriber sonar;
     if (
         run_kinect
     ) {
-        kinect = n.subscribe<sensor_msgs::LaserScan>("scan", 50, &PointRobot::kinectCallback, this);
+        kinect = n.subscribe<sensor_msgs::LaserScan>("/r1/kinect_laser/scan", 50, &PointRobot::kinectCallback, this);
     }
     if (
         run_sonar
     ) {
-        sonar  = n.subscribe<p2os_msgs::SonarArray>("sonar", 50, &PointRobot::sonarCallback, this);        
+        sonar  = n.subscribe<p2os_msgs::SonarArray>("/r1/sonar/", 50, &PointRobot::sonarCallback, this);        
     }
     // Create the motion publisher and set the loop rate
-    ros::Publisher motion = n.advertise<geometry_msgs::Twist>("cmd_vel", 1000);
+    ros::Publisher motion = n.advertise<geometry_msgs::Twist>("/r1/cmd_vel", 1000);
     ros::Rate loop_rate(10);
 
     // Main event loop
@@ -364,6 +206,7 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
         geometry_msgs::Twist msg;
         // Allow the subscriber callbacks to fire
         ros::spinOnce();
+        this->whereAmI();
 
         // If our destiinations queue is empty, try to find another location to visit
         // If we have visited all destinations, we can exit
@@ -375,11 +218,36 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
         }
 
         // Get the angular velocity of the PointRobot
+
+
+
+        double z_orient         = this->pose.orientation.z;
+        double w_orient         = this->pose.orientation.w;
+        double x_pos            = this->pose.position.x;
+        double y_pos            = this->pose.position.y;
+        double dest_x           = this->destinations.front().x;
+        double dest_y           = this->destinations.front().y;
+
+        float angle = atan2(dest_y - y_pos, dest_x - x_pos);
+
+        double curangle = atan2(2 * (w_orient * z_orient), w_orient*w_orient - z_orient*z_orient);
+
+
+        double anglediff = angle - curangle;
+
+
+        if(anglediff > PI){
+            anglediff -= 2*PI;
+        }
+        else if(anglediff < -PI){
+            anglediff += 2*PI;
+        }
         msg.angular.z = this->getAngularVelocity();        
         // If we are not currently turning, calculate the forward velocity
         // of the PointRobot
         if (
-            msg.angular.z == 0.0
+            fabs(anglediff) <= .1
+            // abs(msg.angular.z) == 0.0
         ) {
             msg.linear.x = this->getForwardVelocity();
         }
@@ -414,6 +282,33 @@ std::queue<dest> PointRobot::read_file(char *file) {
         destinations.push(d);
     } while (!read.eof());
     return destinations;
+}
+
+void PointRobot::read_image(const char *file) {
+    std::ifstream read(file);
+    std::string s;
+    int p_val;
+    int mapIdx = this->MAP_WIDTH*this->MAP_HEIGHT - this->MAP_WIDTH;
+    do {
+        getline(read, s);
+        if (
+            read.eof()
+        ) {
+
+            break;
+        }
+        p_val = atoi(s.c_str());
+        if (p_val != 0) {
+            this->MAP_DATA[mapIdx] = 0;
+        }
+        else {
+            this->MAP_DATA[mapIdx] = 100;
+        }
+        mapIdx++;
+        if (mapIdx % this->MAP_WIDTH == 0) {
+            mapIdx -= 2*this->MAP_WIDTH;
+        }
+    } while (!read.eof());
 }
 
 /**
