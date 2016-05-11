@@ -6,7 +6,7 @@
 
 #define PI 3.14159265
 
-#define NUM_POINTS 900.
+#define NUM_POINTS 1200.
 
 Particle::Particle(double x, double y, double theta) {
     this->x = x;
@@ -23,40 +23,88 @@ void Particle::update_location(double delta_x, double delta_y, double delta_thet
 }
 
 void Particle::update_weight(sensor_msgs::LaserScan kinect_data, p2os_msgs::SonarArray sonar_data,
-                             int8_t *MAP_DATA, int32_t MAP_WIDTH, int32_t MAP_HEIGHT, double MAP_RESOLUTION) {
+                             int8_t *MAP_DATA, int32_t MAP_WIDTH, int32_t MAP_HEIGHT, double MAP_RESOLUTION, bool sonar_change) {
+    
+    // printf("starting update\n");
+
     // PROCESS KINECT DATA
     double cumulative_error = 0.0;
-    double inc  = 0.01;
+    double inc  = 0.1;
     double curr_angle = this->theta + kinect_data.angle_min;
+    // if(curr_angle > 3.14159265){
+    //     curr_angle -= 2*3.14159265;
+    // }
+    // else if(curr_angle < -3.14159265){
+    //     curr_angle += 2*3.14150265;
+    // }
     int angleIdx = 0;
-    while (curr_angle < this->theta + kinect_data.angle_max) {
-        double curr_x = this->x;
-        double curr_y = this->y;
-        double curr_r = 0.0;
-        // Starting pixel from slice
-        int index = (int)
-            (MAP_HEIGHT / 2 + curr_y/MAP_RESOLUTION) * MAP_WIDTH
-            + (int)(curr_x/MAP_RESOLUTION + MAP_WIDTH/2); 
-        while (MAP_DATA[index] != 100) {
-            curr_r = curr_r + inc;
-            curr_x = curr_r * cos(curr_angle);
-            curr_y = curr_y * sin(curr_angle);
-            index = (int)
-                (MAP_HEIGHT / 2 + curr_y/MAP_RESOLUTION) * MAP_WIDTH
-                + (int)(curr_x/MAP_RESOLUTION + MAP_WIDTH/2); 
-        }
-        if (curr_r < 8) {
+    if(sonar_change){
+        sonar_change = false;
+        while (curr_angle < this->theta + kinect_data.angle_max) {
+            // printf("currangle: %f\n", curr_angle);
+            // double curr_x = this->x;
+            // double curr_y = this->y;
+            double curr_r = 0.0;
+            // Starting pixel from slice
+            int index = (int)
+                (MAP_HEIGHT / 2 + this->y/MAP_RESOLUTION) * MAP_WIDTH
+                + (int)(this->x/MAP_RESOLUTION + MAP_WIDTH/2); 
+            while (MAP_DATA[index] != 100) {
+                curr_r += inc;
+                double new_x = this->x + curr_r * cos(curr_angle);
+                double new_y = this->y + curr_r * sin(curr_angle);
+                // printf("old x: %f, new x: %f\n", this->x, new_x);
+                // printf("old y: %f, new y: %f\n", this->y, new_y);
+                // printf("curr_r: %f, curr_angle: %f, cos(curr_angle): %f, sin(curr_angle): %f\n", curr_r, curr_angle, cos(curr_angle), sin(curr_angle));
+                // curr_x += curr_r * cos(curr_angle);
+                // curr_y += curr_r * sin(curr_angle);
+                index = (int)
+                    (MAP_HEIGHT / 2 + new_y/MAP_RESOLUTION) * MAP_WIDTH
+                    + (int)(new_x/MAP_RESOLUTION + MAP_WIDTH/2); 
+                // printf("curr_r: %f\n", curr_r);
+                if(curr_r >= 10.0){
+                    break;
+                }
+            }
             cumulative_error = cumulative_error + fabs(kinect_data.ranges[angleIdx]-curr_r);
+            curr_angle = curr_angle + kinect_data.angle_increment*20;
+            angleIdx = angleIdx + 20;
         }
-        curr_angle = curr_angle + kinect_data.angle_increment*20;
-        angleIdx = angleIdx + 20;
+        double angles[] = {-PI/4, -PI/7.2, -PI/12, -PI/36, PI/36, PI/12, PI/7.2, PI/4};
+        for (int i = 0; i < 8; i++) {
+            if (sonar_data.ranges[i] > 0.0) {
+                double curr_r = 0.0;
+                int index = (int)
+                    (MAP_HEIGHT / 2 + this->y/MAP_RESOLUTION) * MAP_WIDTH
+                    + (int)(this->x/MAP_RESOLUTION + MAP_WIDTH/2); 
+                while (MAP_DATA[index] != 100) {
+                    curr_r += inc;
+                    double new_x = this->x + curr_r * cos(this->theta+angles[i]);
+                    double new_y = this->y + curr_r * sin(this->theta+angles[i]);
+                    index = (int)
+                        (MAP_HEIGHT / 2 + new_y/MAP_RESOLUTION) * MAP_WIDTH
+                        + (int)(new_x/MAP_RESOLUTION + MAP_WIDTH/2); 
+                    if(curr_r >= 3.0){
+                        break;
+                    }
+                }
+                cumulative_error = cumulative_error + fabs(sonar_data.ranges[i]-curr_r);
+            }
+        }
     }
+    // printf("cumulative_error: %f\n", cumulative_error);
     if (cumulative_error == 0.0) {
         this->weight = 1.0;
     }
     else {
         this->weight = 1.0/cumulative_error;
+        //if(this->weight < .05){
+        //    this->weight = 0;
+        //}
     }
+
+    // printf("update done\n");
+
 }
 
 Localizer::Localizer(int8_t *MAP_DATA, int32_t MAP_WIDTH, int32_t MAP_HEIGHT, double MAP_RESOLUTION) {
@@ -91,7 +139,7 @@ Localizer::Localizer(int8_t *MAP_DATA, int32_t MAP_WIDTH, int32_t MAP_HEIGHT, do
 
     starting_locations[4].push_back(-54.5);
     starting_locations[4].push_back(7.6);
-    starting_locations[4].push_back(PI);
+    starting_locations[4].push_back(PI/2);
 
     starting_locations[5].push_back(8);
     starting_locations[5].push_back(-1.5);
@@ -112,9 +160,9 @@ void Localizer::create_particles_around(double x, double y, double theta){
 
     for(int i = 0; i < NUM_POINTS/6; i++){
         particles.push_back(new Particle(
-            x + (rand() % (2 * (int)NUM_POINTS) - 1 * NUM_POINTS) / NUM_POINTS,
-            y + (rand() % (2 * (int)NUM_POINTS) - 1 * NUM_POINTS) / NUM_POINTS,
-            theta + PI/4 * ((rand() % (2 * (int)NUM_POINTS) - 1 * NUM_POINTS) / NUM_POINTS) 
+            x + (rand() % (2 * (int)NUM_POINTS) - (int)(1 * NUM_POINTS)) / NUM_POINTS,
+            y + (rand() % (2 * (int)NUM_POINTS) - (int)(1 * NUM_POINTS)) / NUM_POINTS,
+            theta + PI/4 * ((rand() % (2 * (int)NUM_POINTS) - (int)(1 * NUM_POINTS)) / NUM_POINTS) 
         ));
     }
 }
@@ -132,7 +180,7 @@ geometry_msgs::PoseArray Localizer::get_particle_poses(){
     return particle_poses;
 }
 
-void Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::LaserScan kinect_data, p2os_msgs::SonarArray sonar_data) {
+void Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::LaserScan kinect_data, p2os_msgs::SonarArray sonar_data, bool sonar_change) {
     // Record current odom in the case that this is the first iteration.
     if(
         this->last_odom == NULL
@@ -155,11 +203,13 @@ void Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::Laser
     // Update all particle locations
     for(int i = 0; i < particles.size(); i++){
         particles[i]->update_location(delta_x, delta_y, delta_theta);
-        particles[i]->update_weight(kinect_data, sonar_data, MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION);
+        particles[i]->update_weight(kinect_data, sonar_data, MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION, sonar_change);
     }
 
     // Resample particles
-    resample();
+    if(sonar_change){
+        resample();
+    }
 
     // Set last odom for use in next iteration
     this->last_odom->position.x = pose_msg.position.x;
@@ -217,9 +267,9 @@ void Localizer::resample() {
                 alpha_sum >= sampled_alpha
             ) {
                 Particle* p = new Particle(
-                    particles[j]->x + (rand() % (2 * (int)NUM_POINTS) - 1 * NUM_POINTS) / (NUM_POINTS*100),
-                    particles[j]->y + (rand() % (2 * (int)NUM_POINTS) - 1 * NUM_POINTS) / (NUM_POINTS*100),
-                    particles[j]->theta + PI/4 * ((rand() % (2 * (int)NUM_POINTS) - 1 * NUM_POINTS) / (NUM_POINTS*100)) 
+                    particles[j]->x + (rand() % (2 * (int)NUM_POINTS) - (int)(1 * NUM_POINTS)) / (NUM_POINTS*10),
+                    particles[j]->y + (rand() % (2 * (int)NUM_POINTS) - (int)(1 * NUM_POINTS)) / (NUM_POINTS*10),
+                    particles[j]->theta + PI/4 * ((rand() % (2 * (int)NUM_POINTS) - (int)(1 * NUM_POINTS)) / (NUM_POINTS*10)) 
                 );
                 new_particles.push_back(p);
                 break;

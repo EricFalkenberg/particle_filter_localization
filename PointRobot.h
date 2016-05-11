@@ -56,6 +56,8 @@ private:
     geometry_msgs::Pose    pose;
     sensor_msgs::LaserScan kinect_data;
     p2os_msgs::SonarArray  sonar_data;
+
+    bool sonar_change;
     // The twist information returned from /r1/odom
     //geometry_msgs::Twist twist;
 

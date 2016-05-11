@@ -6,7 +6,7 @@
     @param VARIANCE The amount of error we are willing to allow
 */
 PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
-    std::string map_name = "src/point_robot/src/map.info";
+    std::string map_name = "src/PointRobot/src/map.info";
     this->MAP_WIDTH = 2000;
     this->MAP_HEIGHT = 700;
     this->MAP_DATA = new int8_t[this->MAP_WIDTH*this->MAP_HEIGHT];
@@ -17,11 +17,11 @@ PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
     this->ANGULAR_VELOCITY = 0.0;
     this->DEFAULT_SPEED = SPEED;
     this->localizer = new Localizer(MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION);
-
+    this->sonar_change = false;
 }
 
 void PointRobot::whereAmI() {
-    localizer->update_location(this->pose, this->kinect_data, this->sonar_data);
+    localizer->update_location(this->pose, this->kinect_data, this->sonar_data, this->sonar_change);
     geometry_msgs::PoseArray arr = localizer->get_particle_poses();
     point_cloud_pub.publish(arr);
 }
@@ -40,7 +40,10 @@ void PointRobot::odomCallback(nav_msgs::Odometry msgs) {
 }
 
 void PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
+    printf("hello\n");
+    // printf("%s\n", msgs.header.frame_id);
     this->sonar_data = msgs;
+    sonar_change = true;
     //boost::timer t = boost::timer();
     //double x_pos = pose.osition.x;
     //double y_pos = pose.osition.y;
@@ -225,7 +228,7 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
     if (
         run_sonar
     ) {
-        sonar  = n.subscribe<p2os_msgs::SonarArray>("/r1/pseudosonar/scan", 50, &PointRobot::sonarCallback, this);        
+        sonar  = n.subscribe<p2os_msgs::SonarArray>("/r1/sonar/", 50, &PointRobot::sonarCallback, this);        
     }
     // Create the motion publisher and set the loop rate
     ros::Publisher motion = n.advertise<geometry_msgs::Twist>("/r1/cmd_vel", 1000);
