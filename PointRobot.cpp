@@ -40,47 +40,12 @@ void PointRobot::odomCallback(nav_msgs::Odometry msgs) {
 }
 
 void PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
-    printf("hello\n");
-    // printf("%s\n", msgs.header.frame_id);
     this->sonar_data = msgs;
     sonar_change = true;
-    //boost::timer t = boost::timer();
-    //double x_pos = pose.osition.x;
-    //double y_pos = pose.osition.y;
-    //double position_theta = 2*atan2(pose.rientation.z, pose.orientation.w);
-    //double angles[] = {-PI/4, -PI/7.2, -PI/12, -PI/36, PI/36, PI/12, PI/7.2, PI/4};
-    //for (int i = 0; i < 9; i++) {
-    //    if (
-    //        msgs.ranges[i] > 0.0
-    //    ) {
-    //        double x = x_pos + (msgs.ranges[i])*cos(position_theta+angles[i]);
-    //        double y = y_pos + (msgs.ranges[i])*sin(position_theta+angles[i]);
-    //    }
-    //}
 }   
 
 void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
     this->kinect_data = msgs;
-    //boost::timer t = boost::timer();
-    //double x_pos = pose.osition.x;
-    //double y_pos = pose.osition.y;
-    //double position_theta = 2*atan2(pose.rientation.z, pose.orientation.w);
-    //double angle_increment = msgs.angle_increment;
-    //double angle = position_theta + msgs.angle_min;
-    //double max_angle = position_theta + msgs.angle_max;
-    //int midpoint = (fabs(msgs.angle_min - msgs.angle_max) / angle_increment) / 2;
-    //int i = 45;
-    //angle = angle + angle_increment*45;
-    //while (angle < max_angle && i < 638-45) {
-    //    if (
-    //        ! isnan(msgs.ranges[i])
-    //    ) {
-    //        double x = x_pos + (msgs.ranges[i])*cos(angle);
-    //        double y = y_pos + (msgs.ranges[i])*sin(angle);
-    //    }
-    //    angle = angle + 1*angle_increment;
-    //    i += 1;
-    //}
 }
 
     
@@ -382,7 +347,15 @@ int main(int argc, char **argv) {
             usage();
         }
     }
-    PointRobot robot (argv[1], 0.3, 0.1);
+    std::vector< std::vector<float> > v;
+    v.resize(GRANULARITY);
+    for (int i=0; i < v.size(); i++) {
+        v[i].resize(GRANULARITY);
+        for (int j=0; j < v.size(); j++) {
+            v[i][j] = 0.5f;
+        }
+    }
+    PointRobot robot (argv[1], 0.3, 0.1, v);
     robot.run(argc, argv, run_kinect, run_sonar);
     ros::shutdown();
 }

@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <string>
 #include <iostream>
+#include <vector>
 #include <queue>
 #include <map>
 #include <math.h>
@@ -66,6 +67,8 @@ public:
     PointRobot(char* fname, double SPEED, double VARIANCE);
     void whereAmI();
     void updateMap();
+    void plotSonar(double x0, double y0, double x1, double y1);
+    void plotKinect(double x0, double y0, double x1, double y1);
     void sonarCallback(const p2os_msgs::SonarArray msgs);
     void kinectCallback(const sensor_msgs::LaserScan msgs);
     void odomCallback(const nav_msgs::Odometry msgs);
