@@ -9,7 +9,7 @@
     @param VARIANCE The amount of error we are willing to allow
 */
 PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
-    std::string map_name = "src/PointRobot/src/map.info";
+    std::string map_name = "src/project/src/map.info";
     this->MAP_WIDTH = 2000;
     this->MAP_HEIGHT = 700;
     this->MAP_DATA = new int8_t[this->MAP_WIDTH*this->MAP_HEIGHT];
@@ -20,6 +20,7 @@ PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
     this->ANGULAR_VELOCITY = 0.0;
     this->DEFAULT_SPEED = SPEED;
     this->localizer = new Localizer(MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION);
+    this->path_planner = new PathPlanner(MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION);
     this->sonar_change = new bool(false);
 }
 
@@ -30,9 +31,9 @@ void PointRobot::whereAmI() {
 
     if(suspectedLocation->weight > LOCALIZETHRESHOLD){
         //path whatever
-        printf("nailed it!\n");
-        std::vector<MyPoint> pointstest = astar(suspectedLocation->x, suspectedLocation->y, 10, 10);
-        // for(int i = 0; i < pointstest.size(); i++)
+        //printf("%.2f, %.2f\n", suspectedLocation->x, suspectedLocation->y);
+        nav_msgs::Path path = path_planner->plan(suspectedLocation->x, suspectedLocation->y, -12, 12); 
+        path_planning_pub.publish(path);
     }
 }
 
@@ -189,7 +190,7 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
     // be offloaded to Loaclizer.
     
     point_cloud_pub = n.advertise<geometry_msgs::PoseArray>("point_cloud", 1000);
-    
+    path_planning_pub = n.advertise<nav_msgs::Path>("global_path", 1000);
 
     // Create a odom subscriber so that the robot can tell where it is
     ros::Subscriber vel = n.subscribe<nav_msgs::Odometry>("/r1/odom/", 1000, &PointRobot::odomCallback, this);

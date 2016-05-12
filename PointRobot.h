@@ -22,7 +22,9 @@
 #include "sensor_msgs/LaserScan.h"
 #include "p2os_msgs/MotorState.h"
 #include "p2os_msgs/SonarArray.h"
+#include <nav_msgs/Path.h>
 #include "Localizer.h"
+#include "PathPlanner.h"
 #define PI 3.14159265
 
 /**
@@ -45,6 +47,7 @@ private:
     double MAP_RESOLUTION;
 
     Localizer *localizer;
+    PathPlanner *path_planner;
     // The amout of error we will allow.
     double VARIANCE;
     // The angular velocity of the robot.
@@ -66,6 +69,7 @@ private:
     //geometry_msgs::Twist twist;
 
     ros::Publisher point_cloud_pub;
+    ros::Publisher path_planning_pub;
 public:
     PointRobot(char* fname, double SPEED, double VARIANCE);
     void whereAmI();
