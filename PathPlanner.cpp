@@ -122,17 +122,20 @@ nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
             && fabs(node_current.pose.position.y-y1) < ALLOWED_ERROR) {
             break;
         }
+        close.push_back(node_current);
         std::vector< geometry_msgs::PoseStamped > successors = this->get_successors(node_current);
         double g_curr = sqrt(pow(x0-node_current.pose.position.x, 2)+pow(y0-node_current.pose.position.y, 2));
         for (int sIdx = 0; sIdx < successors.size(); sIdx++) {
             double g_succ = sqrt(pow(x0-successors[sIdx].pose.position.x, 2)+pow(y0-successors[sIdx].pose.position.y, 2));
             if (target_in_list(open, successors[sIdx])) {
-                if (g_succ <= g_curr) { continue; }
+                if (g_succ <= g_curr) {
+                    open.push_back(successors[sIdx]);
+                    history[0].push_back(successors[sIdx]);
+                    history[1].push_back(node_current);
+                }
             }
             else if (target_in_list(close, successors[sIdx])) {
-                if (g_succ <= g_curr) { continue; }
-                close = remove_target_from_list(close, successors[sIdx]);
-                open.push_back(successors[sIdx]);  
+                continue;
             }
             else {
                 open.push_back(successors[sIdx]);
@@ -140,7 +143,6 @@ nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
                 history[1].push_back(node_current); 
             }
         }
-        close.push_back(node_current);
     }
     // CHECK THAT GOAL HAS ACTUALLY BEEN MET
     if (fabs(node_current.pose.position.x-x1) > 0.6 || fabs(node_current.pose.position.y-y1) > 0.6) {
