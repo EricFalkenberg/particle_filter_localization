@@ -176,7 +176,7 @@ nav_msgs::Path PathPlanner::compression(nav_msgs::Path path){
 }
 
 nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
-    if(get_pixel_val(x0, y0)!=0){return;}
+    if(get_pixel_val(x0, y0)!=0){return nav_msgs::Path();}
     std::vector< geometry_msgs::PoseStamped > open;
     std::vector< geometry_msgs::PoseStamped > close;
     std::vector< std::vector< geometry_msgs::PoseStamped > > history(2);
