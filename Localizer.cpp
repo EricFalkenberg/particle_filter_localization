@@ -43,6 +43,11 @@ void Particle::update_weight(sensor_msgs::LaserScan kinect_data, p2os_msgs::Sona
         // printf("currangle: %f\n", curr_angle);
         // double curr_x = this->x;
         // double curr_y = this->y;
+        if(isnan(kinect_data.ranges[angleIdx])){
+            curr_angle = curr_angle + kinect_data.angle_increment*20;
+            angleIdx = angleIdx + 20;
+            continue;
+        }
         double curr_r = 0.0;
         // Starting pixel from slice
         int index = (int)
@@ -61,7 +66,7 @@ void Particle::update_weight(sensor_msgs::LaserScan kinect_data, p2os_msgs::Sona
                 (MAP_HEIGHT / 2 + new_y/MAP_RESOLUTION) * MAP_WIDTH
                 + (int)(new_x/MAP_RESOLUTION + MAP_WIDTH/2); 
             // printf("curr_r: %f\n", curr_r);
-            if(curr_r >= 10.0){
+            if(curr_r >= 6){
                 break;
             }
         }
@@ -73,6 +78,9 @@ void Particle::update_weight(sensor_msgs::LaserScan kinect_data, p2os_msgs::Sona
         *sonar_change = false;
         double angles[] = {-PI/4, -PI/7.2, -PI/12, -PI/36, PI/36, PI/12, PI/7.2, PI/4};
         for (int i = 0; i < 8; i++) {
+            if(isnan(sonar_data.ranges[i])){
+                continue;
+            }
             if (sonar_data.ranges[i] > 0.0) {
                 double curr_r = 0.0;
                 int index = (int)
@@ -85,7 +93,7 @@ void Particle::update_weight(sensor_msgs::LaserScan kinect_data, p2os_msgs::Sona
                     index = (int)
                         (MAP_HEIGHT / 2 + new_y/MAP_RESOLUTION) * MAP_WIDTH
                         + (int)(new_x/MAP_RESOLUTION + MAP_WIDTH/2); 
-                    if(curr_r >= 3.0){
+                    if(curr_r >= 2.5){
                         break;
                     }
                 }
@@ -204,6 +212,8 @@ Particle* Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::
     double cur_angle = atan2(2 * (pose_msg.orientation.w * pose_msg.orientation.z), pose_msg.orientation.w*pose_msg.orientation.w - pose_msg.orientation.z*pose_msg.orientation.z);
     double last_angle = atan2(2 * (last_odom->orientation.w * last_odom->orientation.z), last_odom->orientation.w*last_odom->orientation.w - last_odom->orientation.z*last_odom->orientation.z);
     double delta_theta = cur_angle - last_angle;
+
+    printf("delta_theta: %f\n", delta_theta);
 
     // Update all particle locations
     for(int i = 0; i < particles.size(); i++){

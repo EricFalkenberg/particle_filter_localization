@@ -1,7 +1,7 @@
 #include "PointRobot.h"
 #include "RoboPath.h"
 
-#define LOCALIZETHRESHOLD .05
+#define LOCALIZETHRESHOLD .1
 
 /**
     Constructor
@@ -43,6 +43,8 @@ void PointRobot::whereAmI() {
         printf("no destinations left\n");
         return;
     }
+
+    //printf("weight2: %f\n", suspectedLocation->weight);
 
     if(suspectedLocation->weight > LOCALIZETHRESHOLD && !pathCalculated){
         printf("making path\n");
@@ -226,21 +228,21 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
     path_planning_pub = n.advertise<nav_msgs::Path>("global_path", 1000);
 
     // Create a odom subscriber so that the robot can tell where it is
-    ros::Subscriber vel = n.subscribe<nav_msgs::Odometry>("/r1/odom/", 1000, &PointRobot::odomCallback, this);
+    ros::Subscriber vel = n.subscribe<nav_msgs::Odometry>("/pose", 1000, &PointRobot::odomCallback, this);
     ros::Subscriber kinect;
     ros::Subscriber sonar;
     if (
         run_kinect
     ) {
-        kinect = n.subscribe<sensor_msgs::LaserScan>("/r1/kinect_laser/scan", 50, &PointRobot::kinectCallback, this);
+        kinect = n.subscribe<sensor_msgs::LaserScan>("/scan", 50, &PointRobot::kinectCallback, this);
     }
     if (
         run_sonar
     ) {
-        sonar  = n.subscribe<p2os_msgs::SonarArray>("/r1/sonar/", 50, &PointRobot::sonarCallback, this);        
+        sonar  = n.subscribe<p2os_msgs::SonarArray>("/sonar", 50, &PointRobot::sonarCallback, this);        
     }
     // Create the motion publisher and set the loop rate
-    ros::Publisher motion = n.advertise<geometry_msgs::Twist>("/r1/cmd_vel", 1000);
+    ros::Publisher motion = n.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
     ros::Rate loop_rate(10);
 
     // Main event loop
@@ -264,6 +266,8 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
             gotoPoints.poses.empty()
         ) {
             pathCalculated = false;
+            msg.linear.x = 0.1;
+            motion.publish(msg);
             continue;
         }
 
@@ -285,7 +289,7 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
 
         double anglediff = angle - curangle;
 
-        printf("anglediff: %f\n", anglediff);
+        //printf("anglediff: %f\n", anglediff);
 
 
         if(anglediff > PI){
@@ -295,6 +299,7 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
             anglediff += 2*PI;
         }
 
+        printf("Check  weight\n");
         if (suspectedLocation->weight > LOCALIZETHRESHOLD) {
             // printf("1\n");
             msg.angular.z = this->getAngularVelocity();        
@@ -410,7 +415,7 @@ int main(int argc, char **argv) {
             usage();
         }
     }
-    PointRobot robot (argv[1], 0.3, 0.1);
+    PointRobot robot (argv[1], 0.3, 0.3);
     robot.run(argc, argv, run_kinect, run_sonar);
     ros::shutdown();
 }
