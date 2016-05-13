@@ -20,4 +20,8 @@ class PathPlanner {
         std::vector< geometry_msgs::PoseStamped > remove_target_from_list(std::vector< geometry_msgs::PoseStamped > list, geometry_msgs::PoseStamped target);
         geometry_msgs::PoseStamped find_parent(std::vector< std::vector< geometry_msgs::PoseStamped > > history, geometry_msgs::PoseStamped target);
         nav_msgs::Path compression(nav_msgs::Path path);
+
+        geometry_msgs::PoseStamped get_best_score_node(std::vector< geometry_msgs::PoseStamped > nodes, std::vector< double > f_scores);
+        int target_index_in_list(std::vector< geometry_msgs::PoseStamped > list, geometry_msgs::PoseStamped target);
+        double heuristic(double x0, double y0, double x1, double y1);
 };
