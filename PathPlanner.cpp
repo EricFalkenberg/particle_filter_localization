@@ -204,7 +204,7 @@ nav_msgs::Path PathPlanner::compression(nav_msgs::Path path){
 }
 
 nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
-    if(get_pixel_val(x0, y0)!=0){return;}
+    if(get_pixel_val(x0, y0)!=0){return nav_msgs::Path();}
     std::vector< geometry_msgs::PoseStamped > open;
     std::vector< geometry_msgs::PoseStamped > close;
     std::vector< geometry_msgs::PoseStamped > score_nodes;
@@ -245,7 +245,7 @@ nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
                 if (g_succ < g_scores[score_idx]) {
                     open.push_back(successors[sIdx]);
                     g_scores[score_idx]=g_succ;
-                    f_scores[score_idx]=g_succ+heuristic(successors[sIdx].pose.position.x, successors[sIdx].pose.position.y, x1, y1));
+                    f_scores[score_idx]=g_succ+heuristic(successors[sIdx].pose.position.x, successors[sIdx].pose.position.y, x1, y1);
                     history[0].push_back(successors[sIdx]);
                     history[1].push_back(node_current); 
                     
