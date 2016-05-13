@@ -130,9 +130,10 @@ nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
                 if (g_succ <= g_curr) { continue; }
             }
             else if (target_in_list(close, successors[sIdx])) {
-                if (g_succ <= g_curr) { continue; }
-                close = remove_target_from_list(close, successors[sIdx]);
-                open.push_back(successors[sIdx]);  
+                // if (g_succ <= g_curr) { continue; }
+                continue;
+                // close = remove_target_from_list(close, successors[sIdx]);
+                // open.push_back(successors[sIdx]);  
             }
             else {
                 open.push_back(successors[sIdx]);

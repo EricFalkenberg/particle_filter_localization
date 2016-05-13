@@ -252,6 +252,7 @@ Particle* Localizer::determine_location(sensor_msgs::LaserScan kinect_data, p2os
 }
 
 void Localizer::resample() {
+    
     std::vector<double> alphas;
     std::vector<Particle*> new_particles;
 
