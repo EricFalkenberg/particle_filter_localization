@@ -1,5 +1,4 @@
 #include "PointRobot.h"
-#include "RoboPath.h"
 
 #define LOCALIZETHRESHOLD .1
 
