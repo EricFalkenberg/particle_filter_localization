@@ -33,6 +33,25 @@ geometry_msgs::PoseStamped PathPlanner::get_local_optimal(std::vector< geometry_
     return min_p;
 }
 
+geometry_msgs::PoseStamped PathPlanner::get_best_score_node(std::vector< geometry_msgs::PoseStamped >* nodes, std::vector< double > f_scores){
+    geometry_msgs::PoseStamped min_p;
+    double min_h = -1;
+    int best_idx = -1;
+    for (int idx = 0; idx < f_scores->size(); idx++) {
+        double score = (*f_scores)[idx];
+        if (min_h == -1 || score < min_h) {
+            min_p = (*nodes)[idx];
+            min_h = score;
+            best_idx = idx;
+        }
+    }
+    return min_p;
+}
+
+double PathPlanner:: heuristic(double x0, double y0, double x1, double y1) {
+    return abs(x0 - x1) + abs(y0 - y1);
+}
+
 std::vector< geometry_msgs::PoseStamped > PathPlanner::get_successors(geometry_msgs::PoseStamped node_current) {
     std::vector< geometry_msgs::PoseStamped > successors;
     geometry_msgs::PoseStamped n_node  = geometry_msgs::PoseStamped();
@@ -43,19 +62,27 @@ std::vector< geometry_msgs::PoseStamped > PathPlanner::get_successors(geometry_m
     geometry_msgs::PoseStamped ur_node = geometry_msgs::PoseStamped();
     geometry_msgs::PoseStamped ll_node = geometry_msgs::PoseStamped();
     geometry_msgs::PoseStamped lr_node = geometry_msgs::PoseStamped();
-    if (get_pixel_val(node_current.pose.position.x, node_current.pose.position.y + ALLOWED_ERROR*5) == 0) {
+    if (get_pixel_val(node_current.pose.position.x, node_current.pose.position.y + ALLOWED_ERROR*5) == 0
+        && get_pixel_val(node_current.pose.position.x + ALLOWED_ERROR, node_current.pose.position.y + ALLOWED_ERROR*5) == 0
+        && get_pixel_val(node_current.pose.position.x - ALLOWED ERROR, node_current.pose.position.y + ALLOWED_ERROR*5) == 0) {
         n_node.pose.position.x = node_current.pose.position.x; n_node.pose.position.y = node_current.pose.position.y+ALLOWED_ERROR;
         successors.push_back(n_node);
     }
-    if (get_pixel_val(node_current.pose.position.x + ALLOWED_ERROR*4, node_current.pose.position.y) == 0) {
+    if (get_pixel_val(node_current.pose.position.x + ALLOWED_ERROR*4, node_current.pose.position.y) == 0
+        && get_pixel_val(node_current.pose.position.x + ALLOWED_ERROR*4, node_current.pose.position.y + ALLOWED_ERROR) == 0
+        && get_pixel_val(node_current.pose.position.x + ALLOWED_ERROR*4, node_current.pose.position.y - ALLOWED_ERROR) == 0) {
         e_node.pose.position.x = node_current.pose.position.x+ALLOWED_ERROR; e_node.pose.position.y = node_current.pose.position.y;
         successors.push_back(e_node);
     }
-    if (get_pixel_val(node_current.pose.position.x, node_current.pose.position.y - ALLOWED_ERROR*5) == 0) {
+    if (get_pixel_val(node_current.pose.position.x, node_current.pose.position.y - ALLOWED_ERROR*5) == 0
+        && get_pixel_val(node_current.pose.position.x + ALLOWED_ERROR, node_current.pose.position.y - ALLOWED_ERROR*5) == 0
+        && get_pixel_val(node_current.pose.position.x - ALLOWED_ERROR, node_current.pose.position.y - ALLOWED_ERROR*5) == 0) {
         s_node.pose.position.x = node_current.pose.position.x; s_node.pose.position.y = node_current.pose.position.y-ALLOWED_ERROR;
         successors.push_back(s_node);
     }
-    if (get_pixel_val(node_current.pose.position.x - ALLOWED_ERROR*4, node_current.pose.position.y) == 0) {
+    if (get_pixel_val(node_current.pose.position.x - ALLOWED_ERROR*4, node_current.pose.position.y) == 0
+        && get_pixel_val(node_current.pose.position.x - ALLOWED_ERROR*4, node_current.pose.position.y + ALLOWED_ERROR) == 0
+        && get_pixel_val(node_current.pose.position.x - ALLOWED_ERROR*4, node_current.pose.position.y - ALLOWED_ERROR) == 0) {
         w_node.pose.position.x = node_current.pose.position.x-ALLOWED_ERROR; w_node.pose.position.y = node_current.pose.position.y;
         successors.push_back(w_node);
     }
@@ -85,6 +112,15 @@ bool PathPlanner::target_in_list(std::vector< geometry_msgs::PoseStamped > list,
         }
     }
     return false;
+}
+
+int PathPlanner::target_index_in_list(std::vector< geometry_msgs::PoseStamped > list, geometry_msgs::PoseStamped target) {
+    for (int idx = 0; idx < list.size(); idx++) {
+        if (list[idx].pose.position.x == target.pose.position.x && list[idx].pose.position.y == target.pose.position.y) {
+            return idx;
+        }
+    }
+    return -1;
 }
 
 std::vector< geometry_msgs::PoseStamped > PathPlanner::remove_target_from_list(std::vector< geometry_msgs::PoseStamped > list, geometry_msgs::PoseStamped target) {
@@ -170,21 +206,31 @@ nav_msgs::Path PathPlanner::compression(nav_msgs::Path path){
 nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
     std::vector< geometry_msgs::PoseStamped > open;
     std::vector< geometry_msgs::PoseStamped > close;
+    std::vector< geometry_msgs::PoseStamped > score_nodes;
+    std::vector< double > g_score_values;
+    std::vector< double > f_score_values;
     std::vector< std::vector< geometry_msgs::PoseStamped > > history(2);
     geometry_msgs::PoseStamped start = geometry_msgs::PoseStamped(); start.pose.position.x = x0; start.pose.position.y = y0;
     open.push_back(start);
+    g_score_values.push_back(0);
+    f_score_values.push_back(0+heuristic(x0, x1, y0, y1));
+    score_nodes.push_back(start);
     geometry_msgs::PoseStamped node_current;
     while (!open.empty()) {
-        node_current = get_local_optimal(&open, x0, y0, x1, y1);
+        //node_current = get_local_optimal(&open, x0, y0, x1, y1);
+        node_current = get_best_score_node(&score_nodes, f_score_values)
         if (fabs(node_current.pose.position.x-x1) < ALLOWED_ERROR 
             && fabs(node_current.pose.position.y-y1) < ALLOWED_ERROR) {
             break;
         }
         std::vector< geometry_msgs::PoseStamped > successors = this->get_successors(node_current);
-        double g_curr = sqrt(pow(x0-node_current.pose.position.x, 2)+pow(y0-node_current.pose.position.y, 2));
+        //double g_curr = sqrt(pow(x0-node_current.pose.position.x, 2)+pow(y0-node_current.pose.position.y, 2));
+        double g_curr = g_scores[target_index_in_list(score_nodes, node_current)]
         // double g_curr = sqrt(pow(node_current.pose.position.x - x1, 2) + pow(node_current.pose.position.y - y1, 2));
         for (int sIdx = 0; sIdx < successors.size(); sIdx++) {
-            double g_succ = sqrt(pow(x0-successors[sIdx].pose.position.x, 2)+pow(y0-successors[sIdx].pose.position.y, 2));
+            double g_succ = g_scores[target_index_in_list(score_nodes, node_current)]+sqrt(pow(node_current.pose.position.x-successors[sIdx].pose.position.x, 2)+pow(node_current.pose.position.y-successors[sIdx].pose.position.y, 2));
+            
+            //double g_succ = sqrt(pow(x0-successors[sIdx].pose.position.x, 2)+pow(y0-successors[sIdx].pose.position.y, 2));
             // double g_succ = sqrt(pow(successors[sIdx].pose.position.x - x1, 2) + pow(successors[sIdx].pose.position.y - y1, 2));
             if (target_in_list(open, successors[sIdx])) {
                 if (g_succ <= g_curr) { continue; }
@@ -197,6 +243,9 @@ nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
             }
             else {
                 open.push_back(successors[sIdx]);
+                score_nodes.push_back(successors[sIdx]);
+                g_scores.push_back(g_succ);
+                f_scores.push_back(g_succ+heuristic(successors[sIdx].pose.position.x, successors[sIdx].pose.position.y, x1, y1))
                 history[0].push_back(successors[sIdx]);
                 history[1].push_back(node_current); 
             }
