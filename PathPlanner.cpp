@@ -227,19 +227,28 @@ nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
         //double g_curr = sqrt(pow(x0-node_current.pose.position.x, 2)+pow(y0-node_current.pose.position.y, 2));
         double g_curr = g_scores[target_index_in_list(score_nodes, node_current)];
         // double g_curr = sqrt(pow(node_current.pose.position.x - x1, 2) + pow(node_current.pose.position.y - y1, 2));
+        close.push_back(node_current);
         for (int sIdx = 0; sIdx < successors.size(); sIdx++) {
             double g_succ = g_scores[target_index_in_list(score_nodes, node_current)]+sqrt(pow(node_current.pose.position.x-successors[sIdx].pose.position.x, 2)+pow(node_current.pose.position.y-successors[sIdx].pose.position.y, 2));
             
             //double g_succ = sqrt(pow(x0-successors[sIdx].pose.position.x, 2)+pow(y0-successors[sIdx].pose.position.y, 2));
             // double g_succ = sqrt(pow(successors[sIdx].pose.position.x - x1, 2) + pow(successors[sIdx].pose.position.y - y1, 2));
-            if (target_in_list(open, successors[sIdx])) {
-                if (g_succ <= g_curr) { continue; }
-            }
-            else if (target_in_list(close, successors[sIdx])) {
+            if (target_in_list(close, successors[sIdx])) {
                 // if (g_succ <= g_curr) { continue; }
                 continue;
                 // close = remove_target_from_list(close, successors[sIdx]);
                 // open.push_back(successors[sIdx]);  
+            }
+            else if (target_in_list(open, successors[sIdx])) {
+                int score_idx = target_index_in_list(score_nodes, successors[sIdx]);
+                if (g_succ < g_scores[score_idx]) {
+                    open.push_back(successors[sIdx]);
+                    g_scores[score_idx]=g_succ;
+                    f_scores[score_idx]=g_succ+heuristic(successors[sIdx].pose.position.x, successors[sIdx].pose.position.y, x1, y1));
+                    history[0].push_back(successors[sIdx]);
+                    history[1].push_back(node_current); 
+                    
+                }
             }
             else {
                 open.push_back(successors[sIdx]);
@@ -250,7 +259,6 @@ nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
                 history[1].push_back(node_current); 
             }
         }
-        close.push_back(node_current);
     }
     // CHECK THAT GOAL HAS ACTUALLY BEEN MET
     if (fabs(node_current.pose.position.x-x1) > 0.6 || fabs(node_current.pose.position.y-y1) > 0.6) {
