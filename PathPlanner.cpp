@@ -63,26 +63,46 @@ std::vector< geometry_msgs::PoseStamped > PathPlanner::get_successors(geometry_m
     geometry_msgs::PoseStamped ll_node = geometry_msgs::PoseStamped();
     geometry_msgs::PoseStamped lr_node = geometry_msgs::PoseStamped();
     if (get_pixel_val(node_current.pose.position.x, node_current.pose.position.y + ALLOWED_ERROR*5) == 0
+<<<<<<< HEAD
         && get_pixel_val(node_current.pose.position.x + ALLOWED_ERROR, node_current.pose.position.y + ALLOWED_ERROR*5) == 0
         && get_pixel_val(node_current.pose.position.x - ALLOWED_ERROR, node_current.pose.position.y + ALLOWED_ERROR*5) == 0) {
+=======
+        && get_pixel_val(node_current.pose.position.x + 2*ALLOWED_ERROR, node_current.pose.position.y + ALLOWED_ERROR*5) == 0
+        && get_pixel_val(node_current.pose.position.x - 2*ALLOWED_ERROR, node_current.pose.position.y + ALLOWED_ERROR*5) == 0) {
+>>>>>>> 948ea08657979454fc223529a93edac2319bbb09
         n_node.pose.position.x = node_current.pose.position.x; n_node.pose.position.y = node_current.pose.position.y+ALLOWED_ERROR;
         successors.push_back(n_node);
     }
     if (get_pixel_val(node_current.pose.position.x + ALLOWED_ERROR*4, node_current.pose.position.y) == 0
+<<<<<<< HEAD
         && get_pixel_val(node_current.pose.position.x + ALLOWED_ERROR*4, node_current.pose.position.y + ALLOWED_ERROR) == 0
         && get_pixel_val(node_current.pose.position.x + ALLOWED_ERROR*4, node_current.pose.position.y - ALLOWED_ERROR) == 0) {
+=======
+        && get_pixel_val(node_current.pose.position.x + ALLOWED_ERROR*4, node_current.pose.position.y + 2*ALLOWED_ERROR) == 0
+        && get_pixel_val(node_current.pose.position.x + ALLOWED_ERROR*4, node_current.pose.position.y - 2*ALLOWED_ERROR) == 0) {
+>>>>>>> 948ea08657979454fc223529a93edac2319bbb09
         e_node.pose.position.x = node_current.pose.position.x+ALLOWED_ERROR; e_node.pose.position.y = node_current.pose.position.y;
         successors.push_back(e_node);
     }
     if (get_pixel_val(node_current.pose.position.x, node_current.pose.position.y - ALLOWED_ERROR*5) == 0
+<<<<<<< HEAD
         && get_pixel_val(node_current.pose.position.x + ALLOWED_ERROR, node_current.pose.position.y - ALLOWED_ERROR*5) == 0
         && get_pixel_val(node_current.pose.position.x - ALLOWED_ERROR, node_current.pose.position.y - ALLOWED_ERROR*5) == 0) {
+=======
+        && get_pixel_val(node_current.pose.position.x + 2*ALLOWED_ERROR, node_current.pose.position.y - ALLOWED_ERROR*5) == 0
+        && get_pixel_val(node_current.pose.position.x - 2*ALLOWED_ERROR, node_current.pose.position.y - ALLOWED_ERROR*5) == 0) {
+>>>>>>> 948ea08657979454fc223529a93edac2319bbb09
         s_node.pose.position.x = node_current.pose.position.x; s_node.pose.position.y = node_current.pose.position.y-ALLOWED_ERROR;
         successors.push_back(s_node);
     }
     if (get_pixel_val(node_current.pose.position.x - ALLOWED_ERROR*4, node_current.pose.position.y) == 0
+<<<<<<< HEAD
         && get_pixel_val(node_current.pose.position.x - ALLOWED_ERROR*4, node_current.pose.position.y + ALLOWED_ERROR) == 0
         && get_pixel_val(node_current.pose.position.x - ALLOWED_ERROR*4, node_current.pose.position.y - ALLOWED_ERROR) == 0) {
+=======
+        && get_pixel_val(node_current.pose.position.x - ALLOWED_ERROR*4, node_current.pose.position.y + 2*ALLOWED_ERROR) == 0
+        && get_pixel_val(node_current.pose.position.x - ALLOWED_ERROR*4, node_current.pose.position.y - 2*ALLOWED_ERROR) == 0) {
+>>>>>>> 948ea08657979454fc223529a93edac2319bbb09
         w_node.pose.position.x = node_current.pose.position.x-ALLOWED_ERROR; w_node.pose.position.y = node_current.pose.position.y;
         successors.push_back(w_node);
     }
@@ -204,6 +224,7 @@ nav_msgs::Path PathPlanner::compression(nav_msgs::Path path){
 }
 
 nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
+    if(get_pixel_val(x0, y0)!=0){return;}
     std::vector< geometry_msgs::PoseStamped > open;
     std::vector< geometry_msgs::PoseStamped > close;
     std::vector< geometry_msgs::PoseStamped > score_nodes;
