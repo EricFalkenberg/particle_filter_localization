@@ -65,6 +65,10 @@ private:
 
     Particle* suspectedLocation;
 
+    nav_msgs::Path gotoPoints;
+
+    bool pathCalculated;
+
     // The twist information returned from /r1/odom
     //geometry_msgs::Twist twist;
 

@@ -19,4 +19,5 @@ class PathPlanner {
         bool target_in_list(std::vector< geometry_msgs::PoseStamped > list, geometry_msgs::PoseStamped target);
         std::vector< geometry_msgs::PoseStamped > remove_target_from_list(std::vector< geometry_msgs::PoseStamped > list, geometry_msgs::PoseStamped target);
         geometry_msgs::PoseStamped find_parent(std::vector< std::vector< geometry_msgs::PoseStamped > > history, geometry_msgs::PoseStamped target);
+        nav_msgs::Path compression(nav_msgs::Path path);
 };

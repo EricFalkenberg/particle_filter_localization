@@ -43,38 +43,38 @@ std::vector< geometry_msgs::PoseStamped > PathPlanner::get_successors(geometry_m
     geometry_msgs::PoseStamped ur_node = geometry_msgs::PoseStamped();
     geometry_msgs::PoseStamped ll_node = geometry_msgs::PoseStamped();
     geometry_msgs::PoseStamped lr_node = geometry_msgs::PoseStamped();
-    if (get_pixel_val(node_current.pose.position.x, node_current.pose.position.y + ALLOWED_ERROR*2) == 0) {
+    if (get_pixel_val(node_current.pose.position.x, node_current.pose.position.y + ALLOWED_ERROR*5) == 0) {
         n_node.pose.position.x = node_current.pose.position.x; n_node.pose.position.y = node_current.pose.position.y+ALLOWED_ERROR;
         successors.push_back(n_node);
     }
-    if (get_pixel_val(node_current.pose.position.x + ALLOWED_ERROR*2, node_current.pose.position.y) == 0) {
+    if (get_pixel_val(node_current.pose.position.x + ALLOWED_ERROR*4, node_current.pose.position.y) == 0) {
         e_node.pose.position.x = node_current.pose.position.x+ALLOWED_ERROR; e_node.pose.position.y = node_current.pose.position.y;
         successors.push_back(e_node);
     }
-    if (get_pixel_val(node_current.pose.position.x, node_current.pose.position.y - ALLOWED_ERROR*2) == 0) {
+    if (get_pixel_val(node_current.pose.position.x, node_current.pose.position.y - ALLOWED_ERROR*5) == 0) {
         s_node.pose.position.x = node_current.pose.position.x; s_node.pose.position.y = node_current.pose.position.y-ALLOWED_ERROR;
         successors.push_back(s_node);
     }
-    if (get_pixel_val(node_current.pose.position.x - ALLOWED_ERROR*2, node_current.pose.position.y) == 0) {
+    if (get_pixel_val(node_current.pose.position.x - ALLOWED_ERROR*4, node_current.pose.position.y) == 0) {
         w_node.pose.position.x = node_current.pose.position.x-ALLOWED_ERROR; w_node.pose.position.y = node_current.pose.position.y;
         successors.push_back(w_node);
     }
-    if (get_pixel_val(node_current.pose.position.x+ALLOWED_ERROR*2, node_current.pose.position.y+ALLOWED_ERROR*2) == 0) {
-        ur_node.pose.position.x = node_current.pose.position.x+ALLOWED_ERROR; ur_node.pose.position.y = node_current.pose.position.y+ALLOWED_ERROR;
-        successors.push_back(ur_node);
-    }
-    if (get_pixel_val(node_current.pose.position.x+ALLOWED_ERROR*2, node_current.pose.position.y-ALLOWED_ERROR*2) == 0) {
-        lr_node.pose.position.x = node_current.pose.position.x+ALLOWED_ERROR; lr_node.pose.position.y = node_current.pose.position.y-ALLOWED_ERROR;
-        successors.push_back(lr_node);
-    }
-    if (get_pixel_val(node_current.pose.position.x-ALLOWED_ERROR*2, node_current.pose.position.y+ALLOWED_ERROR*2) == 0) {
-        ul_node.pose.position.x = node_current.pose.position.x-ALLOWED_ERROR; ul_node.pose.position.y = node_current.pose.position.y+ALLOWED_ERROR;
-        successors.push_back(ul_node);
-    }
-    if (get_pixel_val(node_current.pose.position.x-ALLOWED_ERROR*2, node_current.pose.position.y-ALLOWED_ERROR*2) == 0) {
-        ll_node.pose.position.x = node_current.pose.position.x-ALLOWED_ERROR; ll_node.pose.position.y = node_current.pose.position.y-ALLOWED_ERROR;
-        successors.push_back(ll_node);
-    }
+    // if (get_pixel_val(node_current.pose.position.x+ALLOWED_ERROR*2, node_current.pose.position.y+ALLOWED_ERROR*2) == 0) {
+    //     ur_node.pose.position.x = node_current.pose.position.x+ALLOWED_ERROR; ur_node.pose.position.y = node_current.pose.position.y+ALLOWED_ERROR;
+    //     successors.push_back(ur_node);
+    // }
+    // if (get_pixel_val(node_current.pose.position.x+ALLOWED_ERROR*2, node_current.pose.position.y-ALLOWED_ERROR*2) == 0) {
+    //     lr_node.pose.position.x = node_current.pose.position.x+ALLOWED_ERROR; lr_node.pose.position.y = node_current.pose.position.y-ALLOWED_ERROR;
+    //     successors.push_back(lr_node);
+    // }
+    // if (get_pixel_val(node_current.pose.position.x-ALLOWED_ERROR*2, node_current.pose.position.y+ALLOWED_ERROR*2) == 0) {
+    //     ul_node.pose.position.x = node_current.pose.position.x-ALLOWED_ERROR; ul_node.pose.position.y = node_current.pose.position.y+ALLOWED_ERROR;
+    //     successors.push_back(ul_node);
+    // }
+    // if (get_pixel_val(node_current.pose.position.x-ALLOWED_ERROR*2, node_current.pose.position.y-ALLOWED_ERROR*2) == 0) {
+    //     ll_node.pose.position.x = node_current.pose.position.x-ALLOWED_ERROR; ll_node.pose.position.y = node_current.pose.position.y-ALLOWED_ERROR;
+    //     successors.push_back(ll_node);
+    // }
     return successors;
 }
 
@@ -109,6 +109,64 @@ geometry_msgs::PoseStamped PathPlanner::find_parent(std::vector< std::vector< ge
     return p;
 }
 
+double slope(double x0, double y0, double x1, double y1){
+    double dx = double(x1-x0);
+
+    if(dx != 0){
+        return double(y1-y0)/dx;
+    }
+    else{
+        return FLT_MAX;
+    }
+}
+
+double distBetween(double x0, double y0, double x1, double y1){
+    return pow(pow(x1 - x0, 2) + pow(y1 - y0, 2), .5);
+}
+
+nav_msgs::Path PathPlanner::compression(nav_msgs::Path path){
+    printf("path before:\n");
+    for(int i = 0; i < path.poses.size(); i++){
+        printf("%f, %f\n", path.poses[i].pose.position.x, path.poses[i].pose.position.y);
+    }
+
+    int i = 1;
+
+    for(;;){
+        // get_pixel_val(path[i].pose.position.x, path[i].pose.position.y)
+
+        if(i >= path.poses.size()-1){
+            break;
+        }
+
+        if(
+            (fabs(slope(path.poses[i+1].pose.position.x, path.poses[i+1].pose.position.y, path.poses[i].pose.position.x, path.poses[i].pose.position.y) - slope(path.poses[i].pose.position.x, path.poses[i].pose.position.y, path.poses[i-1].pose.position.x, path.poses[i-1].pose.position.y) < .2)
+            || (i + 2 < path.poses.size()
+            && slope(path.poses[i+1].pose.position.x, path.poses[i+1].pose.position.y, path.poses[i].pose.position.x, path.poses[i].pose.position.y) == slope(path.poses[i-1].pose.position.x, path.poses[i-1].pose.position.y, path.poses[i-2].pose.position.x, path.poses[i-2].pose.position.y)))
+
+            && distBetween(path.poses[i+1].pose.position.x, path.poses[i+1].pose.position.y, path.poses[i-1].pose.position.x, path.poses[i-1].pose.position.y) <= 5)
+        {
+            path.poses.erase(path.poses.begin()+i);
+
+            continue;
+        }
+
+        i++;
+    }
+
+    for(int i = 0; i < path.poses.size(); i++){
+        // path.poses[i].pose.position.x = (path.poses[i].pose.position.x - (int)MAP_WIDTH/2);
+        // path.poses[i].pose.position.y = ((int)MAP_HEIGHT/2) - path.poses[i].pose.position.y;
+    }
+
+    printf("path after:\n");
+    for(int i = 0; i < path.poses.size(); i++){
+        printf("%f, %f\n", path.poses[i].pose.position.x, path.poses[i].pose.position.y);
+    }
+
+    return path;
+}
+
 nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
     std::vector< geometry_msgs::PoseStamped > open;
     std::vector< geometry_msgs::PoseStamped > close;
@@ -124,8 +182,10 @@ nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
         }
         std::vector< geometry_msgs::PoseStamped > successors = this->get_successors(node_current);
         double g_curr = sqrt(pow(x0-node_current.pose.position.x, 2)+pow(y0-node_current.pose.position.y, 2));
+        // double g_curr = sqrt(pow(node_current.pose.position.x - x1, 2) + pow(node_current.pose.position.y - y1, 2));
         for (int sIdx = 0; sIdx < successors.size(); sIdx++) {
             double g_succ = sqrt(pow(x0-successors[sIdx].pose.position.x, 2)+pow(y0-successors[sIdx].pose.position.y, 2));
+            // double g_succ = sqrt(pow(successors[sIdx].pose.position.x - x1, 2) + pow(successors[sIdx].pose.position.y - y1, 2));
             if (target_in_list(open, successors[sIdx])) {
                 if (g_succ <= g_curr) { continue; }
             }
@@ -147,6 +207,7 @@ nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
     if (fabs(node_current.pose.position.x-x1) > 0.6 || fabs(node_current.pose.position.y-y1) > 0.6) {
         //printf("DEST: %.2f, %.2f\n", node_current.pose.position.x, node_current.pose.position.y);
         printf("COULDNT FIND GOAL\n");
+        return nav_msgs::Path();
     }
     nav_msgs::Path path = nav_msgs::Path();
     path.header.frame_id = "/map";
@@ -155,5 +216,5 @@ nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
         path.poses.push_back(curr_pose);
         curr_pose = find_parent(history, curr_pose);
     } 
-    return path;
+    return compression(path);
 }

@@ -154,6 +154,7 @@ Localizer::Localizer(int8_t *MAP_DATA, int32_t MAP_WIDTH, int32_t MAP_HEIGHT, do
     create_particles_around(starting_locations[4][0], starting_locations[4][1], starting_locations[4][2]);
     create_particles_around(starting_locations[5][0], starting_locations[5][1], starting_locations[5][2]);
 
+    last_odom = NULL;
 }
 
 void Localizer::create_particles_around(double x, double y, double theta){
@@ -186,12 +187,15 @@ Particle* Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::
     if(
         this->last_odom == NULL
     ) {
+        printf("are we getting here?\n");
         last_odom = new geometry_msgs::Pose();
         this->last_odom->position.x = pose_msg.position.x;
         this->last_odom->position.y = pose_msg.position.y;
         this->last_odom->orientation.w = pose_msg.orientation.w;
         this->last_odom->orientation.z = pose_msg.orientation.z;
-        return NULL;
+        Particle *test = new Particle(0, 0, 0);
+        test->weight = 0.01;
+        return test;
     }
 
     // Calculate deltas in x, y, theta

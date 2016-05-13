@@ -22,23 +22,54 @@ PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
     this->localizer = new Localizer(MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION);
     this->path_planner = new PathPlanner(MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION);
     this->sonar_change = new bool(false);
+    this->pathCalculated = false;
+    this->gotoPoints = nav_msgs::Path();
 }
 
 void PointRobot::whereAmI() {
     suspectedLocation = localizer->update_location(this->pose, this->kinect_data, this->sonar_data, sonar_change);
+    if(suspectedLocation == NULL){
+        suspectedLocation = new Particle(0, 0, 0);
+        suspectedLocation->weight = 0;
+    }
+    // suspectedLocation->update_weight(this->kinect_data, this->sonar_data, MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION, sonar_change);
+    printf("suspected weight: %f\n", suspectedLocation->weight);
     geometry_msgs::PoseArray arr = localizer->get_particle_poses();
+    // printf("1\n");
     point_cloud_pub.publish(arr);
+    // printf("2\n");
 
-    if(suspectedLocation->weight > LOCALIZETHRESHOLD){
+    if(this->destinations.empty()){
+        printf("no destinations left\n");
+        return;
+    }
+
+    if(suspectedLocation->weight > LOCALIZETHRESHOLD && !pathCalculated){
+        printf("making path\n");
         //path whatever
         //printf("%.2f, %.2f\n", suspectedLocation->x, suspectedLocation->y);
-        nav_msgs::Path path = path_planner->plan(suspectedLocation->x, suspectedLocation->y, 10, 12); 
-        path_planning_pub.publish(path);
+        dest d = this->destinations.front();
+        gotoPoints = path_planner->plan(suspectedLocation->x, suspectedLocation->y, d.x, d.y);
+        if(gotoPoints.poses.empty()){
+            return;
+        }
+
+        printf("going here: %f, %f\n", d.x, d.y);
+        
+        this->destinations.pop();
+
+        path_planning_pub.publish(gotoPoints);
+
+        printf("%f, %f\n", gotoPoints.poses[gotoPoints.poses.size()-1].pose.position.x, gotoPoints.poses[gotoPoints.poses.size()-1].pose.position.y);
+
+        pathCalculated = true;
+
+        // gotoPoints = &path;
     }
 }
 
 void PointRobot::updateMap() {
-    // DO NOTHING FOR NOW
+    // DO NOTHING FOR EVER
 }
 
 /**
@@ -69,19 +100,21 @@ void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
 double PointRobot::getAngularVelocity() {
     double destination_theta;
     double delta_theta;
-    double x_pos            = this->pose.position.x;
-    double y_pos            = this->pose.position.y;
-    double dest_x           = this->destinations.front().x;
-    double dest_y           = this->destinations.front().y;
-    double z_orient         = this->pose.orientation.z;
-    double w_orient         = this->pose.orientation.w;
+    double x_pos            = suspectedLocation->x;
+    double y_pos            = suspectedLocation->y;
+    // printf("is it back1\n");
+    double dest_x           = this->gotoPoints.poses[gotoPoints.poses.size()-1].pose.position.x;
+    double dest_y           = this->gotoPoints.poses[gotoPoints.poses.size()-1].pose.position.y;
+    // printf("is it back2\n");
+    //double z_orient         = this->pose.orientation.z;
+    //double w_orient         = this->pose.orientation.w;
     // double position_theta   = 2*atan2(pose.rientation.z, pose.orientation.w);
     double delta_x          = dest_x-x_pos;
     double delta_y          = dest_y-y_pos;
 
     float angle = atan2(dest_y - y_pos, dest_x - x_pos);
-
-    double curangle = atan2(2 * (w_orient * z_orient), w_orient*w_orient - z_orient*z_orient);
+    double curangle = suspectedLocation->theta;
+    //double curangle = atan2(2 * (w_orient * z_orient), w_orient*w_orient - z_orient*z_orient);
 
 
     double anglediff = angle - curangle;
@@ -113,10 +146,10 @@ double PointRobot::getAngularVelocity() {
     @return The forward velocity of the PointRobot
 */
 double PointRobot::getForwardVelocity() {
-    double x_pos        = pose.position.x;
-    double y_pos        = pose.position.y;
-    double dest_x       = this->destinations.front().x;
-    double dest_y       = this->destinations.front().y;
+    double x_pos        = suspectedLocation->x;
+    double y_pos        = suspectedLocation->y;
+    double dest_x       = this->gotoPoints.poses.back().pose.position.x;
+    double dest_y       = this->gotoPoints.poses.back().pose.position.y;
     double EXT_VARIANCE = VARIANCE*5;    
 
     if (
@@ -133,7 +166,7 @@ double PointRobot::getForwardVelocity() {
         // allowing for the specified error, we can stop the PointRobot and pop
         // the active destination off of the destinations queue.           
         printf("DESTINATION REACHED: (%.2f, %.2f)\n", dest_x, dest_y);
-        destinations.pop();
+        gotoPoints.poses.pop_back();
         return 0.0;
     }
     else if (
@@ -222,29 +255,37 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
         // If our destiinations queue is empty, try to find another location to visit
         // If we have visited all destinations, we can exit
         if (
-            destinations.empty()
+            destinations.empty() && gotoPoints.poses.empty()
         ) {
             motion.publish(msg);
             break;
+        }
+        if(
+            gotoPoints.poses.empty()
+        ) {
+            pathCalculated = false;
+            continue;
         }
 
         // Get the angular velocity of the PointRobot
 
 
 
-        double z_orient         = this->pose.orientation.z;
-        double w_orient         = this->pose.orientation.w;
-        double x_pos            = this->pose.position.x;
-        double y_pos            = this->pose.position.y;
-        double dest_x           = this->destinations.front().x;
-        double dest_y           = this->destinations.front().y;
+        //double z_orient         = this->pose.orientation.z;
+        //double w_orient         = this->pose.orientation.w;
+        double x_pos            = suspectedLocation->x;
+        double y_pos            = suspectedLocation->y;
+        double dest_x           = this->gotoPoints.poses.back().pose.position.x;
+        double dest_y           = this->gotoPoints.poses.back().pose.position.y;
 
         float angle = atan2(dest_y - y_pos, dest_x - x_pos);
 
-        double curangle = atan2(2 * (w_orient * z_orient), w_orient*w_orient - z_orient*z_orient);
-
+        //double curangle = atan2(2 * (w_orient * z_orient), w_orient*w_orient - z_orient*z_orient);
+        double curangle = suspectedLocation->theta;
 
         double anglediff = angle - curangle;
+
+        printf("anglediff: %f\n", anglediff);
 
 
         if(anglediff > PI){
@@ -253,16 +294,27 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
         else if(anglediff < -PI){
             anglediff += 2*PI;
         }
-        msg.angular.z = this->getAngularVelocity();        
-        // If we are not currently turning, calculate the forward velocity
-        // of the PointRobot
-        if (
-            fabs(anglediff) <= .1
-            // abs(msg.angular.z) == 0.0
-        ) {
-            msg.linear.x = this->getForwardVelocity();
+
+        if (suspectedLocation->weight > LOCALIZETHRESHOLD) {
+            // printf("1\n");
+            msg.angular.z = this->getAngularVelocity();        
+            // If we are not currently turning, calculate the forward velocity
+            // of the PointRobot
+            if (
+                fabs(anglediff) <= .1
+                // abs(msg.angular.z) == 0.0
+            ) {
+                // printf("2\n");
+                msg.linear.x = this->getForwardVelocity();
+            }
+            // printf("3\n");
+        }
+        else {
+            printf("wandering\n");
+            msg.linear.x = 0.1;
         }
         // Publish our velocities to /r1/cmd_vel
+        // printf("passed\n");
         motion.publish(msg);
 
         // Sleep until next required action
