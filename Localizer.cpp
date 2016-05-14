@@ -39,6 +39,7 @@ void Particle::update_weight(sensor_msgs::LaserScan kinect_data, p2os_msgs::Sona
     //     curr_angle += 2*3.14150265;
     // }
     int angleIdx = 0;
+    if(curr_angle >= this->theta+kinect_data.angle_max){cumulative_error=100;}
     while (curr_angle < this->theta + kinect_data.angle_max) {
         // printf("currangle: %f\n", curr_angle);
         // double curr_x = this->x;
@@ -101,18 +102,13 @@ void Particle::update_weight(sensor_msgs::LaserScan kinect_data, p2os_msgs::Sona
             }
         }
     }
-    // printf("cumulative_error: %f\n", cumulative_error);
     if (cumulative_error == 0.0) {
         this->weight = 1.0;
     }
     else {
         this->weight = 1.0/cumulative_error;
-        //if(this->weight < .05){
-        //    this->weight = 0;
-        //}
     }
 
-    // printf("update done\n");
 
 }
 
@@ -190,6 +186,15 @@ geometry_msgs::PoseArray Localizer::get_particle_poses(){
     return particle_poses;
 }
 
+/**
+    updates the location of all the particles based on the change in odom from the last step to this one.
+
+    then calls the weight update on the particles to update our confidence based on the most recent sensor readings, and resamples based on these new weights
+
+    after that it determines a single "location" for the robot with a confidence based on the width of the distribution of all the points.
+
+    if the weight is below a certain threshold, the point robot will decide that it is localized and try to plan and execute a path.
+*/
 Particle* Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::LaserScan kinect_data, p2os_msgs::SonarArray sonar_data, bool *sonar_change) {
     // Record current odom in the case that this is the first iteration.
     if(
@@ -213,25 +218,15 @@ Particle* Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::
     double last_angle = atan2(2 * (last_odom->orientation.w * last_odom->orientation.z), last_odom->orientation.w*last_odom->orientation.w - last_odom->orientation.z*last_odom->orientation.z);
     double delta_theta = cur_angle - last_angle;
 
-    printf("delta_theta: %f\n", delta_theta);
-
     // Update all particle locations
     for(int i = 0; i < particles.size(); i++){
         particles[i]->update_location(delta_x, delta_y, delta_theta);
         particles[i]->update_weight(kinect_data, sonar_data, MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION, sonar_change);
-        // printf("weight: %f\n", particles[i]->weight);
     }
 
-    // Resample particles
-    // if(sonar_change == 1){
-        resample();
-    // }
+    resample();
 
-    // if(sonar_change == 2){
-        Particle* pTest = determine_location(kinect_data, sonar_data, sonar_change);
-        // sonar_change = 0
-        // printf("pTest x: %f, pTest y: %f, pTest theta: %f, pTest weight: %f\n", pTest->x, pTest->y, pTest->theta, pTest->weight);
-    // }
+    Particle* pTest = determine_location(kinect_data, sonar_data, sonar_change);
 
     // Set last odom for use in next iteration
     this->last_odom->position.x = pose_msg.position.x;
@@ -242,6 +237,10 @@ Particle* Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::
     return pTest;
 }
 
+/**
+    averages the current particles and creates a single "location" particle for path planning and execution. The particle weight is
+    based on the probability that the particle is actually there based on the variance in the distribution.
+*/
 Particle* Localizer::determine_location(sensor_msgs::LaserScan kinect_data, p2os_msgs::SonarArray sonar_data, bool *sonar_change){
     double average_x = 0;
     double average_y = 0;
@@ -265,6 +264,9 @@ Particle* Localizer::determine_location(sensor_msgs::LaserScan kinect_data, p2os
     return result;
 }
 
+/**
+    randomly redistributes new particles based on the weights of the old ones
+*/
 void Localizer::resample() {
     
     std::vector<double> alphas;
@@ -297,7 +299,7 @@ void Localizer::resample() {
 
 
     for(int i = 0; i < alphas.size(); i++){
-        //TODO: REGENERATE ON THE WHOLE MAP IF NEED BE
+        //TODO: REGENERATE ON THE WHOLE MAP IF NEED BE (we didn't have time, but this is where we would be resampling on the whole map if localization is lost)
         if(weight_sum != 0){
             alphas[i] = alphas[i] / weight_sum;
         }

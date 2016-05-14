@@ -7,7 +7,10 @@
 
 
 
-
+/**
+    a single particle. holds an x, y and theta location/orientation, and a weight value based on how well we think it describes the position of the robot
+    based on sensor readings.
+*/
 class Particle {
     private:
         // private members

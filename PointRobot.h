@@ -69,8 +69,6 @@ private:
 
     bool pathCalculated;
 
-    // The twist information returned from /r1/odom
-    //geometry_msgs::Twist twist;
 
     ros::Publisher point_cloud_pub;
     ros::Publisher path_planning_pub;

@@ -67,22 +67,6 @@ std::vector< geometry_msgs::PoseStamped > PathPlanner::get_successors(geometry_m
         w_node.pose.position.x = node_current.pose.position.x-ALLOWED_ERROR; w_node.pose.position.y = node_current.pose.position.y;
         successors.push_back(w_node);
     }
-    // if (get_pixel_val(node_current.pose.position.x+ALLOWED_ERROR*2, node_current.pose.position.y+ALLOWED_ERROR*2) == 0) {
-    //     ur_node.pose.position.x = node_current.pose.position.x+ALLOWED_ERROR; ur_node.pose.position.y = node_current.pose.position.y+ALLOWED_ERROR;
-    //     successors.push_back(ur_node);
-    // }
-    // if (get_pixel_val(node_current.pose.position.x+ALLOWED_ERROR*2, node_current.pose.position.y-ALLOWED_ERROR*2) == 0) {
-    //     lr_node.pose.position.x = node_current.pose.position.x+ALLOWED_ERROR; lr_node.pose.position.y = node_current.pose.position.y-ALLOWED_ERROR;
-    //     successors.push_back(lr_node);
-    // }
-    // if (get_pixel_val(node_current.pose.position.x-ALLOWED_ERROR*2, node_current.pose.position.y+ALLOWED_ERROR*2) == 0) {
-    //     ul_node.pose.position.x = node_current.pose.position.x-ALLOWED_ERROR; ul_node.pose.position.y = node_current.pose.position.y+ALLOWED_ERROR;
-    //     successors.push_back(ul_node);
-    // }
-    // if (get_pixel_val(node_current.pose.position.x-ALLOWED_ERROR*2, node_current.pose.position.y-ALLOWED_ERROR*2) == 0) {
-    //     ll_node.pose.position.x = node_current.pose.position.x-ALLOWED_ERROR; ll_node.pose.position.y = node_current.pose.position.y-ALLOWED_ERROR;
-    //     successors.push_back(ll_node);
-    // }
     return successors;
 }
 
@@ -133,15 +117,10 @@ double distBetween(double x0, double y0, double x1, double y1){
 }
 
 nav_msgs::Path PathPlanner::compression(nav_msgs::Path path){
-    printf("path before:\n");
-    for(int i = 0; i < path.poses.size(); i++){
-        printf("%f, %f\n", path.poses[i].pose.position.x, path.poses[i].pose.position.y);
-    }
 
     int i = 1;
 
     for(;;){
-        // get_pixel_val(path[i].pose.position.x, path[i].pose.position.y)
 
         if(i >= path.poses.size()-1){
             break;
@@ -162,19 +141,15 @@ nav_msgs::Path PathPlanner::compression(nav_msgs::Path path){
         i++;
     }
 
-    for(int i = 0; i < path.poses.size(); i++){
-        // path.poses[i].pose.position.x = (path.poses[i].pose.position.x - (int)MAP_WIDTH/2);
-        // path.poses[i].pose.position.y = ((int)MAP_HEIGHT/2) - path.poses[i].pose.position.y;
-    }
-
-    printf("path after:\n");
-    for(int i = 0; i < path.poses.size(); i++){
-        printf("%f, %f\n", path.poses[i].pose.position.x, path.poses[i].pose.position.y);
-    }
-
     return path;
 }
 
+
+/**
+performs an astar path plan between the start (x0, y0) and the goal (x1, y1).
+
+takes into account the map data and passable/impassible locations based on mapdata
+*/
 nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
     std::vector< geometry_msgs::PoseStamped > open;
     std::vector< geometry_msgs::PoseStamped > close;
@@ -190,18 +165,13 @@ nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
         }
         std::vector< geometry_msgs::PoseStamped > successors = this->get_successors(node_current);
         double g_curr = sqrt(pow(x0-node_current.pose.position.x, 2)+pow(y0-node_current.pose.position.y, 2));
-        // double g_curr = sqrt(pow(node_current.pose.position.x - x1, 2) + pow(node_current.pose.position.y - y1, 2));
         for (int sIdx = 0; sIdx < successors.size(); sIdx++) {
             double g_succ = sqrt(pow(x0-successors[sIdx].pose.position.x, 2)+pow(y0-successors[sIdx].pose.position.y, 2));
-            // double g_succ = sqrt(pow(successors[sIdx].pose.position.x - x1, 2) + pow(successors[sIdx].pose.position.y - y1, 2));
             if (target_in_list(open, successors[sIdx])) {
                 if (g_succ <= g_curr) { continue; }
             }
             else if (target_in_list(close, successors[sIdx])) {
-                // if (g_succ <= g_curr) { continue; }
                 continue;
-                // close = remove_target_from_list(close, successors[sIdx]);
-                // open.push_back(successors[sIdx]);  
             }
             else {
                 open.push_back(successors[sIdx]);
@@ -213,7 +183,6 @@ nav_msgs::Path PathPlanner::plan(double x0, double y0, double x1, double y1) {
     }
     // CHECK THAT GOAL HAS ACTUALLY BEEN MET
     if (fabs(node_current.pose.position.x-x1) > 0.6 || fabs(node_current.pose.position.y-y1) > 0.6) {
-        //printf("DEST: %.2f, %.2f\n", node_current.pose.position.x, node_current.pose.position.y);
         printf("COULDNT FIND GOAL\n");
         return nav_msgs::Path();
     }
