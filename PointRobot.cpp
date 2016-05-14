@@ -8,7 +8,7 @@
     @param VARIANCE The amount of error we are willing to allow
 */
 PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
-    std::string map_name = "src/PointRobot/src/map.info";
+    std::string map_name = "map.info";
     this->MAP_WIDTH = 2000;
     this->MAP_HEIGHT = 700;
     this->MAP_DATA = new int8_t[this->MAP_WIDTH*this->MAP_HEIGHT];
@@ -18,11 +18,15 @@ PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
     this->VARIANCE = VARIANCE;
     this->ANGULAR_VELOCITY = 0.0;
     this->DEFAULT_SPEED = SPEED;
+
     this->localizer = new Localizer(MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION);
     this->path_planner = new PathPlanner(MAP_DATA, MAP_WIDTH, MAP_HEIGHT, MAP_RESOLUTION);
     this->sonar_change = new bool(false);
     this->pathCalculated = false;
     this->gotoPoints = nav_msgs::Path();
+    this->avoiding=false;
+    this->avoidance_dest;
+    //this->avoidance = Avoidance();
 }
 
 void PointRobot::whereAmI() {
@@ -69,6 +73,16 @@ void PointRobot::whereAmI() {
     }
 }
 
+void PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
+    this->sonar_data = msgs;
+    *sonar_change = false;
+}   
+
+void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
+    this->kinect_data = msgs;
+
+}
+
 void PointRobot::updateMap() {
     // DO NOTHING FOR EVER
 }
@@ -82,16 +96,6 @@ void PointRobot::odomCallback(nav_msgs::Odometry msgs) {
     this->pose  = msgs.pose.pose;
 }
 
-void PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
-    this->sonar_data = msgs;
-    *sonar_change = false;
-}   
-
-void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
-    this->kinect_data = msgs;
-}
-
-    
 /**
     When called, this function will determine the angular velocity that
     the PointRobot instance should take on considering the destination location
@@ -106,6 +110,10 @@ double PointRobot::getAngularVelocity() {
     // printf("is it back1\n");
     double dest_x           = this->gotoPoints.poses[gotoPoints.poses.size()-1].pose.position.x;
     double dest_y           = this->gotoPoints.poses[gotoPoints.poses.size()-1].pose.position.y;
+    if(this->avoiding == true){
+        dest_x = this->avoidance_dest.x;
+        dest_y = this->avoidance_dest.y;
+    }
     // printf("is it back2\n");
     //double z_orient         = this->pose.orientation.z;
     //double w_orient         = this->pose.orientation.w;
@@ -115,6 +123,7 @@ double PointRobot::getAngularVelocity() {
 
     float angle = atan2(dest_y - y_pos, dest_x - x_pos);
     double curangle = suspectedLocation->theta;
+    double position_theta   = 2*atan2(pose.orientation.z, pose.orientation.w);
     //double curangle = atan2(2 * (w_orient * z_orient), w_orient*w_orient - z_orient*z_orient);
 
 
@@ -151,6 +160,10 @@ double PointRobot::getForwardVelocity() {
     double y_pos        = suspectedLocation->y;
     double dest_x       = this->gotoPoints.poses.back().pose.position.x;
     double dest_y       = this->gotoPoints.poses.back().pose.position.y;
+    if(this->avoiding == true){
+        dest_x = this->avoidance_dest.x;
+        dest_y = this->avoidance_dest.y;
+    }
     double EXT_VARIANCE = VARIANCE*5;    
 
     if (
@@ -167,7 +180,12 @@ double PointRobot::getForwardVelocity() {
         // allowing for the specified error, we can stop the PointRobot and pop
         // the active destination off of the destinations queue.           
         printf("DESTINATION REACHED: (%.2f, %.2f)\n", dest_x, dest_y);
-        gotoPoints.poses.pop_back();
+        if(this->avoiding == true){
+            this->avoiding=false;
+        }
+        else{
+            gotoPoints.poses.pop_back();
+        }
         return 0.0;
     }
     else if (
@@ -244,10 +262,11 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
     ros::Publisher motion = n.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
     ros::Rate loop_rate(10);
 
-    // Main event loop
 
+    // Main event loop
     while (ros::ok()) 
     {
+        printf("TESTEST\n");
         geometry_msgs::Twist msg;
         // Allow the subscriber callbacks to fire
         ros::spinOnce();
@@ -269,9 +288,6 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
             motion.publish(msg);
             continue;
         }
-
-        // Get the angular velocity of the PointRobot
-
 
 
         //double z_orient         = this->pose.orientation.z;
@@ -309,6 +325,37 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
                 // abs(msg.angular.z) == 0.0
             ) {
                 // printf("2\n");
+                //DETECT IF OBSTICLE IN THE WAY OF CURRENT GOAL DESTINATION
+                //***************************
+                if(this->avoiding==false){
+                    sensor_msgs::LaserScan kinect_msg = this->kinect_data;
+                    double x_pos            = this->pose.position.x;
+                    double y_pos            = this->pose.position.y;
+                    double dest_x           = this->destinations.front().x;
+                    double dest_y           = this->destinations.front().y;
+
+                    double dist_to_goal = sqrt(pow(x_pos-dest_x, 2.0) + 
+                                            pow(y_pos-dest_y,2.0));
+                    double angle_increment = kinect_msg.angle_increment;
+                    int midpoint = (fabs(kinect_msg.angle_min - kinect_msg.angle_max) / angle_increment) / 2;
+                    //check if any ranges around midpoint are problamatic
+                    int k = midpoint - 20;
+                    bool obstacle = false;
+                    while(k < midpoint + 20){
+                        if(kinect_msg.ranges[k] < dist_to_goal && kinect_msg.ranges[k] < 1){
+                            obstacle = true;
+                            break;
+                        }
+                        k++;
+                    }
+                    
+                    if(!isnan(kinect_msg.ranges[midpoint])){
+                        if(obstacle==true){
+                            this->boundary_following();
+                        }
+                    }
+                }
+                //**************************
                 msg.linear.x = this->getForwardVelocity();
             }
             // printf("3\n");
@@ -327,12 +374,75 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
     return 0;
 }
 
+void PointRobot::boundary_following(){
+    sensor_msgs::LaserScan kinect_msg = kinect_data;
+    double position_theta = 2*atan2(pose.orientation.z, pose.orientation.w);
+    double angle_increment = kinect_msg.angle_increment;
+    double angle = position_theta + kinect_msg.angle_min;
+    //double angle = kinect_msg.angle_min;
+    double max_angle = position_theta + kinect_msg.angle_max;
+    double x_pos            = this->pose.position.x;
+    double y_pos            = this->pose.position.y;
+    double closest_angle = 10000.0;
+    double closest_range = 10000.0;
+    double maxRange = 1;
+    int midpoint = (fabs(kinect_msg.angle_min - kinect_msg.angle_max) / angle_increment) / 2;
+    int j = midpoint;
+    while(kinect_msg.ranges[j-1] < maxRange && j > 45){
+        if(kinect_msg.ranges[j] < closest_range){
+            closest_range = kinect_msg.ranges[j];
+            closest_angle = angle + angle_increment*j;
+        }
+        j = j-1;
+    }
+    double o1range = kinect_msg.ranges[j];
+    double o1angle = angle + kinect_msg.angle_min + j*angle_increment;
+    angle = position_theta + kinect_msg.angle_min;
+    j = midpoint;
+    while(kinect_msg.ranges[j] < maxRange && j < 638-45){
+        if(kinect_msg.ranges[j] < closest_range){
+            closest_range = kinect_msg.ranges[j];
+            closest_angle = angle + angle_increment*j;
+        }
+        j=j+1;
+    }
+    double o2range = kinect_msg.ranges[j];
+    double o2angle = position_theta + kinect_msg.angle_min + j * angle_increment;
+
+    //determine which side of the obstacle to go to
+    double o1x = x_pos + o1range*cos(position_theta+o1angle);
+    double o1y = y_pos + o1range*sin(position_theta+o1angle);
+    double o2x = x_pos + o2range*cos(position_theta+o2angle);
+    double o2y = y_pos + o2range*sin(position_theta+o2angle);
+
+    double goalx = this->destinations.front().x;
+    double goaly = this->destinations.front().y; 
+    double o1_dist = sqrt((o1x-x_pos)*(o1x-x_pos) + (o1y-y_pos)*(o1y-y_pos));
+    double o2_dist = sqrt((o2x-x_pos)*(o2x-x_pos) + (o2y-y_pos)*(o2y-y_pos));
+    
+    double o1_goal_dist = sqrt((o1x-goalx)*(o1x-goalx) + (o1y-goaly)*(o1y-goaly));
+    double o2_goal_dist = sqrt((o2x-goalx)*(o2x-goalx) + (o2y-goaly)*(o2y-goaly));
+    double direction = -1.0;
+    if((o1_dist+o1_goal_dist) < (o2_dist + o2_goal_dist)){
+        direction = 1.0;
+    }
+
+    double tangent_angle = closest_angle + direction*(PI/2);
+    
+    //travel 0.3 meters along the tangent line
+    
+    this->avoidance_dest.x = x_pos + 0.5 * cos(tangent_angle);
+    this->avoidance_dest.y =  y_pos + 0.5 * sin(tangent_angle);
+    this->avoiding = true;
+}
+
 /**
     The function responsible for reading the input file into memory
     and translating it into a queue of destination points.
     @param file The name of the file to be read
 */
 std::queue<dest> PointRobot::read_file(char *file) {
+    printf("readfile called \n");
     std::queue<dest> destinations; 
     std::ifstream read(file);
     std::string s;
@@ -348,6 +458,7 @@ std::queue<dest> PointRobot::read_file(char *file) {
         std::sscanf(s.c_str(), "%lf %lf", &d.x, &d.y);
         destinations.push(d);
     } while (!read.eof());
+    printf("destinations empty: %d\n", destinations.empty());
     return destinations;
 }
 
@@ -414,7 +525,9 @@ int main(int argc, char **argv) {
             usage();
         }
     }
+
     PointRobot robot (argv[1], 0.3, 0.3);
+
     robot.run(argc, argv, run_kinect, run_sonar);
     ros::shutdown();
 }

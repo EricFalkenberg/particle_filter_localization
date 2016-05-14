@@ -9,8 +9,6 @@
 #include <stack>
 #include <boost/thread.hpp>
 #include <boost/timer.hpp>
-#include "ros/ros.h"
-#include "ros/console.h"
 #include "geometry_msgs/Twist.h"
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/PoseArray.h"
@@ -27,9 +25,6 @@
 #include "PathPlanner.h"
 #define PI 3.14159265
 
-/**
-    Represents a destination point on the (x,y) plane.
-*/
 struct dest {
     double x;
     double y;
@@ -37,7 +32,6 @@ struct dest {
         return this->x < n.x;
     }
 };
-
 
 class PointRobot {
 private:
@@ -56,6 +50,10 @@ private:
     double DEFAULT_SPEED;
     // A queue of destination points.
     std::queue<dest> destinations;
+    // A flag that indicates whether we're currently avoiding an obstacle
+    bool avoiding;
+    //The intermediary destination while avoiding
+    dest avoidance_dest;
     // The pose information returned from /r1/odom
     geometry_msgs::Pose    pose;
     sensor_msgs::LaserScan kinect_data;
@@ -85,6 +83,7 @@ public:
     void odomCallback(const nav_msgs::Odometry msgs);
     double getAngularVelocity();
     double getForwardVelocity();
+    void boundary_following();
     int run(int argc, char** argv, bool run_kinect, bool run_sonar);
     std::queue<dest> read_file(char *file);
     void read_image(const char *file);
