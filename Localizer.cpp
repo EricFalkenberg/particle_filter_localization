@@ -200,7 +200,6 @@ Particle* Localizer::update_location(geometry_msgs::Pose pose_msg, sensor_msgs::
     if(
         this->last_odom == NULL
     ) {
-        printf("are we getting here?\n");
         last_odom = new geometry_msgs::Pose();
         this->last_odom->position.x = pose_msg.position.x;
         this->last_odom->position.y = pose_msg.position.y;

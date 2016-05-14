@@ -8,8 +8,8 @@
     @param fname The filename containing all destination points
     @param VARIANCE The amount of error we are willing to allow
 */
-PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
-    std::string map_name = "src/PointRobot/src/map.info";
+PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE, char* mname) {
+    std::string map_name = mname;
     this->MAP_WIDTH = 2000;
     this->MAP_HEIGHT = 700;
     this->MAP_DATA = new int8_t[this->MAP_WIDTH*this->MAP_HEIGHT];
@@ -26,9 +26,6 @@ PointRobot::PointRobot(char* fname, double SPEED, double VARIANCE) {
     this->gotoPoints = nav_msgs::Path();
 }
 
-/**
-    Calls the localizer and path plans if we're below the threshold
-*/
 void PointRobot::whereAmI() {
     suspectedLocation = localizer->update_location(this->pose, this->kinect_data, this->sonar_data, sonar_change);
     if(suspectedLocation == NULL){
@@ -58,10 +55,11 @@ void PointRobot::whereAmI() {
 
         path_planning_pub.publish(gotoPoints);
 
-        pathCalculated = true;
 
+        pathCalculated = true;
     }
 }
+
 
 /**
     The callback function responsible for handling any information
@@ -72,17 +70,11 @@ void PointRobot::odomCallback(nav_msgs::Odometry msgs) {
     this->pose  = msgs.pose.pose;
 }
 
-/**
-    saves the sonar data
-*/
 void PointRobot::sonarCallback(const p2os_msgs::SonarArray msgs) {
     this->sonar_data = msgs;
     *sonar_change = false;
 }   
 
-/**
-    saves the kinect data
-*/
 void PointRobot::kinectCallback(const sensor_msgs::LaserScan msgs) {
     this->kinect_data = msgs;
 }
@@ -261,6 +253,7 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
         // Get the angular velocity of the PointRobot
 
 
+
         double x_pos            = suspectedLocation->x;
         double y_pos            = suspectedLocation->y;
         double dest_x           = this->gotoPoints.poses.back().pose.position.x;
@@ -272,7 +265,6 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
 
         double anglediff = angle - curangle;
 
-        printf("anglediff: %f\n", anglediff);
 
 
         if(anglediff > PI){
@@ -282,7 +274,8 @@ int PointRobot::run(int argc, char** argv, bool run_kinect, bool run_sonar) {
             anglediff += 2*PI;
         }
 
-        printf("Check  weight. If we pass below a lower threshold, wander for a bit to try to find ourselves again.\n");
+        //Check  weight, if it's within a more generous threshold keep executing the path
+        //Otherwise wander a bit and try to relocalize more confidently
         if (suspectedLocation->weight > LOCALIZETHRESHOLD - THRESHDIFF) {
             msg.angular.z = this->getAngularVelocity();        
             // If we are not currently turning, calculate the forward velocity
@@ -330,9 +323,6 @@ std::queue<dest> PointRobot::read_file(char *file) {
     return destinations;
 }
 
-/**
-reads image data in for localization and planning
-**/
 void PointRobot::read_image(const char *file) {
     std::ifstream read(file);
     std::string s;
@@ -364,7 +354,7 @@ void PointRobot::read_image(const char *file) {
     usage error message
 */
 void usage() {
-    printf("rosrun hw4 mapper <input_file> [sonar] [kinect]\n");
+    printf("rosrun hw4 mapper <input_file> <map_file> [sonar] [kinect]\n");
 }
 
 /**
@@ -374,12 +364,12 @@ int main(int argc, char **argv) {
     bool run_kinect = false;
     bool run_sonar = false;
     if (
-        argc < 3
+        argc < 4
     ) {
         usage();
         return 0;
     }
-    for (int i = 2; i < argc; i++) {
+    for (int i = 3; i < argc; i++) {
         std::string arg(argv[i]);
         if (
             arg.compare("sonar") == 0
@@ -396,7 +386,7 @@ int main(int argc, char **argv) {
             usage();
         }
     }
-    PointRobot robot (argv[1], 0.3, 0.3);
+    PointRobot robot (argv[1], 0.3, 0.3, argv[2]);
     robot.run(argc, argv, run_kinect, run_sonar);
     ros::shutdown();
 }

@@ -73,7 +73,7 @@ private:
     ros::Publisher point_cloud_pub;
     ros::Publisher path_planning_pub;
 public:
-    PointRobot(char* fname, double SPEED, double VARIANCE);
+    PointRobot(char* fname, double SPEED, double VARIANCE, char* mname);
     void whereAmI();
     void updateMap();
     void plotSonar(double x0, double y0, double x1, double y1);
